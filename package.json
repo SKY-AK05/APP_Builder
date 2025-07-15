@@ -78,7 +78,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/SKY-AK05/APP_Builder/issues"
   },
