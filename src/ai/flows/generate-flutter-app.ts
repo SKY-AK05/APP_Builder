@@ -17,7 +17,7 @@ const GenerateFlutterAppInputSchema = z.object({
 export type GenerateFlutterAppInput = z.infer<typeof GenerateFlutterAppInputSchema>;
 
 const GenerateFlutterAppOutputSchema = z.object({
-  flutterCode: z.string().describe('The generated Flutter code for the application.'),
+  flutterCode: z.string().describe('The generated Flutter code for the application in a single file.'),
 });
 export type GenerateFlutterAppOutput = z.infer<typeof GenerateFlutterAppOutputSchema>;
 
@@ -29,11 +29,11 @@ const prompt = ai.definePrompt({
   name: 'generateFlutterAppPrompt',
   input: {schema: GenerateFlutterAppInputSchema},
   output: {schema: GenerateFlutterAppOutputSchema},
-  prompt: `You are an AI Flutter developer. You will generate a Flutter application based on the user's description.
+  prompt: `You are an expert Flutter developer. You will generate a complete, single-file Flutter application based on the user's description. The generated code must be valid Dart code for a single main.dart file.
 
 User Description: {{{userPrompt}}}
 
-Generate the Flutter code:
+Generate the complete Flutter code for main.dart:
 `,
 });
 

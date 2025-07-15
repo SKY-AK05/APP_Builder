@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { ArrowLeft, Bot, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Bot, Code, Smartphone, Loader2, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,8 +20,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { determineImportantRequirement } from "@/ai/flows/determine-important-requirement";
 import { generateFlutterApp } from "@/ai/flows/generate-flutter-app";
+import { generateFlutterPreview } from "@/ai/flows/generate-flutter-preview";
 import { CodeDisplay } from "@/components/code-display";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const formSchema = z.object({
   prompt: z
@@ -31,7 +34,9 @@ const formSchema = z.object({
 
 export default function BuildPage() {
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("Generating...");
   const [isVaguePrompt, setIsVaguePrompt] = useState(false);
   const { toast } = useToast();
 
@@ -45,9 +50,11 @@ export default function BuildPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     setGeneratedCode(null);
+    setPreviewImage(null);
     setIsVaguePrompt(false);
 
     try {
+      setLoadingMessage("Analyzing requirements...");
       const requirementCheck = await determineImportantRequirement({
         userRequest: values.prompt,
       });
@@ -58,8 +65,14 @@ export default function BuildPage() {
         return;
       }
 
-      const result = await generateFlutterApp({ userPrompt: values.prompt });
-      setGeneratedCode(result.flutterCode);
+      setLoadingMessage("Generating Flutter code...");
+      const codeResult = await generateFlutterApp({ userPrompt: values.prompt });
+      setGeneratedCode(codeResult.flutterCode);
+
+      setLoadingMessage("Creating app preview...");
+      const previewResult = await generateFlutterPreview({ flutterCode: codeResult.flutterCode });
+      setPreviewImage(previewResult.imageUrl);
+
     } catch (error) {
       console.error("Error generating app:", error);
       toast({
@@ -115,7 +128,7 @@ export default function BuildPage() {
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating...
+                    {loadingMessage}
                   </>
                 ) : (
                   <>
@@ -137,10 +150,47 @@ export default function BuildPage() {
                 </AlertDescription>
               </Alert>
             )}
-            {generatedCode && (
-              <div className="space-y-4">
-                <h3 className="text-xl font-semibold">Generated Flutter Code</h3>
-                <CodeDisplay code={generatedCode} />
+            {(generatedCode || isLoading) && !isVaguePrompt && (
+              <div className="mt-8">
+                <Tabs defaultValue="preview" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="preview" disabled={!previewImage && !isLoading}>
+                      <Smartphone className="mr-2 h-4 w-4" />
+                      Preview
+                    </TabsTrigger>
+                    <TabsTrigger value="code">
+                      <Code className="mr-2 h-4 w-4" />
+                      Code
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="preview">
+                    <div className="relative mx-auto mt-6 w-[320px] h-[640px] rounded-[40px] border-[10px] border-slate-800 bg-slate-900 shadow-2xl">
+                       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-6 rounded-b-2xl bg-slate-800"></div>
+                       <div className="w-full h-full rounded-[30px] overflow-hidden bg-background">
+                        {isLoading && !previewImage && (
+                          <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                            <p className="text-muted-foreground">Generating app preview...</p>
+                            <p className="text-sm text-muted-foreground/50">This might take a moment.</p>
+                          </div>
+                        )}
+                        {previewImage && (
+                          <Image
+                            src={previewImage}
+                            alt="Generated app preview"
+                            layout="fill"
+                            objectFit="cover"
+                          />
+                        )}
+                       </div>
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="code">
+                    <div className="space-y-4 mt-6">
+                      <CodeDisplay code={generatedCode ?? "Generating code..."} />
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
             )}
           </div>
