@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import JSZip from "jszip";
-import { ArrowLeft, Bot, FileCode, Play, Loader2, Sparkles, Terminal, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, Bot, FileCode, Play, Loader2, Sparkles, Terminal, CheckCircle2, XCircle, Wand2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -35,10 +35,27 @@ type ActiveTab = 'logs' | 'preview';
 type ActiveCodeTab = 'main.dart' | 'pubspec.yaml';
 type BuildStatus = 'idle' | 'zipping' | 'uploading' | 'building' | 'success' | 'error';
 
-// IMPORTANT: Replace this with the URL of your deployed build server if it's not running locally.
 const BUILD_SERVER_URL = "http://localhost:3001/api/flutter-build"; 
-// This should be the base URL for the final hosted apps.
 const PREVIEW_URL_BASE = "http://localhost:3001/builds"; 
+
+const examplePrompts = [
+  {
+    title: "Todo List App",
+    prompt: "A simple todo list app where users can add tasks, mark them as complete by tapping, and delete them. Completed tasks should look different from pending tasks."
+  },
+  {
+    title: "Pomodoro Timer",
+    prompt: "A minimalist Pomodoro timer app with start, stop, and reset buttons. It should have a visual timer and a way to customize work and break durations."
+  },
+  {
+    title: "Recipe App",
+    prompt: "A recipe app that shows a list of recipes. Tapping a recipe opens a detail view with ingredients and instructions. Use placeholder images for recipe photos."
+  },
+   {
+    title: "Calculator",
+    prompt: "A basic calculator app with standard arithmetic operations (add, subtract, multiply, divide). It should have a clean interface with a display screen and number/operator buttons."
+  }
+];
 
 export default function BuildPage() {
   const [generatedCode, setGeneratedCode] = useState<GenerateFlutterAppOutput | null>(null);
@@ -54,18 +71,22 @@ export default function BuildPage() {
   const { toast } = useToast();
   const logContainerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (logContainerRef.current) {
-      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
-    }
-  }, [buildLogs]);
-
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       prompt: "",
     },
   });
+
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [buildLogs]);
+
+  const handleExamplePromptClick = (prompt: string) => {
+    form.setValue("prompt", prompt);
+  };
   
   const startBuildProcess = async (code: GenerateFlutterAppOutput) => {
       setBuildStatus('zipping');
@@ -95,7 +116,6 @@ export default function BuildPage() {
         setBuildStatus('building');
         setBuildLogs(logs => [...logs, `Build started with ID: ${buildId}`, '---']);
         
-        // Use the build server's host for the WebSocket connection
         const buildServerHost = new URL(BUILD_SERVER_URL).host;
         const wsProtocol = new URL(BUILD_SERVER_URL).protocol === "https:" ? "wss:" : "ws:";
         const wsUrl = `${wsProtocol}//${buildServerHost}/logs?buildId=${buildId}`;
@@ -178,7 +198,6 @@ export default function BuildPage() {
       const codeResult = await generateFlutterApp({ userPrompt: values.prompt });
       setGeneratedCode(codeResult);
       
-      // The build process is now started after code generation is complete
       startBuildProcess(codeResult);
 
     } catch (error: any) {
@@ -233,8 +252,25 @@ export default function BuildPage() {
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold tracking-tighter">Describe Your App</h2>
             <p className="text-muted-foreground mt-2">
-              Tell our AI what your Flutter app should do. Be as specific as possible for the best results.
+              Tell our AI what your Flutter app should do. Or try one of our examples to get started.
             </p>
+          </div>
+
+          <div className="mb-4">
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {examplePrompts.map((example) => (
+                <Button 
+                  key={example.title}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleExamplePromptClick(example.prompt)}
+                  className="bg-card/50"
+                >
+                  <Wand2 className="mr-2 h-4 w-4" />
+                  {example.title}
+                </Button>
+              ))}
+            </div>
           </div>
           
           <Form {...form}>
@@ -311,7 +347,7 @@ export default function BuildPage() {
                             <TabsTrigger value="logs">
                                 <Terminal className="mr-2 h-4 w-4" />
                                 Logs
-                            </TabsTrigger>
+                            </Tabs_Trigger>
                             <TabsTrigger value="preview" disabled={buildStatus !== 'success'}>
                                 <Play className="mr-2 h-4 w-4" />
                                 Preview
