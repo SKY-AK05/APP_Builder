@@ -46,11 +46,13 @@ const prompt = ai.definePrompt({
 
 **System Constraints:**
 - You must generate a complete Flutter project structure, including a \`pubspec.yaml\` and a \`main.dart\` file.
-- The \`main.dart\` file must contain valid Dart code.
+- The \`main.dart\` file must contain valid, complete, and syntactically correct Dart code.
 - The \`pubspec.yaml\` file should include a basic setup and any necessary dependencies if the user's prompt requires them (e.g., http, provider). Keep dependencies to a minimum.
-- The app should be visually appealing and follow Material Design 3 principles.
-- Implement a clear structure within \`main.dart\`, separating widgets into their own classes where appropriate.
+- The app should be visually appealing and follow Material Design 3 principles. Use a professional color scheme and layout.
+- Implement a clear structure within \`main.dart\`, separating widgets into their own classes where appropriate. Do not create one single giant widget.
 - Ensure the code is clean, readable, and well-commented where necessary to explain complex logic.
+- Do not use any placeholder code or comments like "// Your code here". The generated code must be fully complete.
+- The response must be a single, valid JSON object containing the 'pubspec' and 'mainDart' keys.
 
 **User Description:**
 {{{userPrompt}}}
