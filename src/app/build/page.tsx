@@ -2,11 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { ArrowLeft, Bot, Code, Smartphone, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Bot, Code, FileCode, Play, Loader2, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,8 +18,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { determineImportantRequirement } from "@/ai/flows/determine-important-requirement";
-import { generateFlutterApp } from "@/ai/flows/generate-flutter-app";
-import { generateFlutterPreview } from "@/ai/flows/generate-flutter-preview";
+import { generateFlutterApp, GenerateFlutterAppOutput } from "@/ai/flows/generate-flutter-app";
 import { CodeDisplay } from "@/components/code-display";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -33,14 +31,15 @@ const formSchema = z.object({
 });
 
 type ActiveTab = 'code' | 'preview';
+type ActiveCodeTab = 'main.dart' | 'pubspec.yaml';
 
 export default function BuildPage() {
-  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [generatedCode, setGeneratedCode] = useState<GenerateFlutterAppOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("Generating...");
   const [isVaguePrompt, setIsVaguePrompt] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>('code');
+  const [activeCodeTab, setActiveCodeTab] = useState<ActiveCodeTab>('main.dart');
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -53,7 +52,6 @@ export default function BuildPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     setGeneratedCode(null);
-    setPreviewImage(null);
     setIsVaguePrompt(false);
     setActiveTab('code');
 
@@ -69,16 +67,11 @@ export default function BuildPage() {
         return;
       }
 
-      setLoadingMessage("Generating Flutter code...");
+      setLoadingMessage("Generating Flutter project...");
       const codeResult = await generateFlutterApp({ userPrompt: values.prompt });
-      setGeneratedCode(codeResult.flutterCode);
-      setActiveTab('code'); // Switch to code tab first
-
-      setLoadingMessage("Creating app preview...");
-      const previewResult = await generateFlutterPreview({ flutterCode: codeResult.flutterCode });
-      setPreviewImage(previewResult.imageUrl);
-      setActiveTab('preview'); // Switch to preview once image is ready
-
+      setGeneratedCode(codeResult);
+      setActiveTab('code');
+      setActiveCodeTab('main.dart');
 
     } catch (error: any) {
       console.error("Error generating app:", error);
@@ -176,35 +169,39 @@ export default function BuildPage() {
                       <Code className="mr-2 h-4 w-4" />
                       Code
                     </TabsTrigger>
-                    <TabsTrigger value="preview" disabled={!previewImage && !generatedCode}>
-                      <Smartphone className="mr-2 h-4 w-4" />
+                    <TabsTrigger value="preview" disabled={!generatedCode}>
+                      <Play className="mr-2 h-4 w-4" />
                       Preview
                     </TabsTrigger>
                   </TabsList>
                   <TabsContent value="code">
                      <div className="space-y-4 mt-6">
-                      <CodeDisplay code={generatedCode ?? "Generating code..."} />
+                       {isLoading && !generatedCode ? (
+                         <CodeDisplay code={"Generating project files..."} />
+                       ) : (
+                        <Tabs value={activeCodeTab} onValueChange={(value) => setActiveCodeTab(value as ActiveCodeTab)} className="w-full">
+                            <TabsList>
+                                <TabsTrigger value="main.dart"><FileCode className="mr-2 h-4 w-4"/>main.dart</TabsTrigger>
+                                <TabsTrigger value="pubspec.yaml"><FileCode className="mr-2 h-4 w-4"/>pubspec.yaml</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="main.dart">
+                                <CodeDisplay code={generatedCode?.mainDart ?? ""} />
+                            </TabsContent>
+                             <TabsContent value="pubspec.yaml">
+                                <CodeDisplay code={generatedCode?.pubspec ?? ""} />
+                            </TabsContent>
+                        </Tabs>
+                       )}
                     </div>
                   </TabsContent>
                   <TabsContent value="preview">
-                    <div className="relative mx-auto mt-6 w-[320px] h-[640px] rounded-[40px] border-[10px] border-slate-800 bg-slate-900 shadow-2xl">
-                       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-6 rounded-b-2xl bg-slate-800"></div>
-                       <div className="w-full h-full rounded-[30px] overflow-hidden bg-background">
-                        {isLoading && !previewImage && (
-                          <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                            <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-                            <p className="text-muted-foreground">Compiling preview...</p>
-                            <p className="text-sm text-muted-foreground/50">This might take a moment.</p>
-                          </div>
-                        )}
-                        {previewImage && (
-                          <Image
-                            src={previewImage}
-                            alt="Generated app preview"
-                            layout="fill"
-                            objectFit="cover"
-                          />
-                        )}
+                    <div className="relative mx-auto mt-6 w-full h-[640px] rounded-lg border bg-card text-card-foreground shadow-sm flex items-center justify-center">
+                       <div className="text-center p-4">
+                          <Play className="mx-auto h-12 w-12 text-muted-foreground" />
+                          <h3 className="mt-4 text-lg font-semibold">Live Preview</h3>
+                          <p className="mt-2 text-sm text-muted-foreground">
+                            A live, interactive preview of your app will appear here once the build service is integrated.
+                          </p>
                        </div>
                     </div>
                   </TabsContent>

@@ -12,16 +12,29 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateFlutterAppInputSchema = z.object({
-  userPrompt: z.string().describe('The user prompt describing the desired Flutter application.'),
+  userPrompt: z
+    .string()
+    .describe('The user prompt describing the desired Flutter application.'),
 });
-export type GenerateFlutterAppInput = z.infer<typeof GenerateFlutterAppInputSchema>;
+export type GenerateFlutterAppInput = z.infer<
+  typeof GenerateFlutterAppInputSchema
+>;
 
 const GenerateFlutterAppOutputSchema = z.object({
-  flutterCode: z.string().describe('The generated Flutter code for the application in a single file.'),
+  pubspec: z
+    .string()
+    .describe('The generated pubspec.yaml content for the application.'),
+  mainDart: z
+    .string()
+    .describe('The generated Flutter code for the application in a single main.dart file.'),
 });
-export type GenerateFlutterAppOutput = z.infer<typeof GenerateFlutterAppOutputSchema>;
+export type GenerateFlutterAppOutput = z.infer<
+  typeof GenerateFlutterAppOutputSchema
+>;
 
-export async function generateFlutterApp(input: GenerateFlutterAppInput): Promise<GenerateFlutterAppOutput> {
+export async function generateFlutterApp(
+  input: GenerateFlutterAppInput
+): Promise<GenerateFlutterAppOutput> {
   return generateFlutterAppFlow(input);
 }
 
@@ -32,19 +45,17 @@ const prompt = ai.definePrompt({
   prompt: `You are an expert senior Flutter developer tasked with creating a beautiful, production-worthy application.
 
 **System Constraints:**
-- You must generate a complete, single-file Flutter application.
-- The entire code must be valid Dart for a single \`main.dart\` file.
-- Do not use any external packages or dependencies that require a \`pubspec.yaml\` file. All code must rely on the standard Flutter SDK.
+- You must generate a complete Flutter project structure, including a \`pubspec.yaml\` and a \`main.dart\` file.
+- The \`main.dart\` file must contain valid Dart code.
+- The \`pubspec.yaml\` file should include a basic setup and any necessary dependencies if the user's prompt requires them (e.g., http, provider). Keep dependencies to a minimum.
 - The app should be visually appealing and follow Material Design 3 principles.
-- Use appropriate widgets to create a rich, fully-featured user interface.
-- Implement a clear structure, separating widgets into their own classes where appropriate, even within the single file.
+- Implement a clear structure within \`main.dart\`, separating widgets into their own classes where appropriate.
 - Ensure the code is clean, readable, and well-commented where necessary to explain complex logic.
-- The app should be stateful if the user's request implies interaction or data changes.
 
-**User Description:** 
+**User Description:**
 {{{userPrompt}}}
 
-Generate the complete Flutter code for main.dart:
+Generate the complete content for both \`pubspec.yaml\` and \`main.dart\`.
 `,
 });
 
