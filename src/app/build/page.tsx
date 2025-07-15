@@ -31,20 +31,21 @@ const formSchema = z.object({
     .max(500, { message: "Prompt must not be longer than 500 characters." }),
 });
 
-type ActiveTab = 'code' | 'preview';
+type ActiveTab = 'logs' | 'preview';
 type ActiveCodeTab = 'main.dart' | 'pubspec.yaml';
 type BuildStatus = 'idle' | 'zipping' | 'uploading' | 'building' | 'success' | 'error';
 
-const BUILD_SERVER_URL = "/api/flutter-build"; // Replace with your actual build server URL
-const LOG_SERVER_URL_BASE = "/logs"; // Replace with your actual log server URL (ws or wss)
-const PREVIEW_URL_BASE = "/builds"; // Replace with your actual preview hosting URL
+// IMPORTANT: Replace this with the URL of your deployed build server.
+const BUILD_SERVER_URL = "http://localhost:3001/api/flutter-build"; 
+// This should be the base URL for the final hosted apps.
+const PREVIEW_URL_BASE = "http://localhost:3001/builds"; 
 
 export default function BuildPage() {
   const [generatedCode, setGeneratedCode] = useState<GenerateFlutterAppOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("Generating...");
   const [isVaguePrompt, setIsVaguePrompt] = useState(false);
-  const [activeTab, setActiveTab] = useState<ActiveTab>('code');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('logs');
   const [activeCodeTab, setActiveCodeTab] = useState<ActiveCodeTab>('main.dart');
   const [buildStatus, setBuildStatus] = useState<BuildStatus>('idle');
   const [buildLogs, setBuildLogs] = useState<string[]>([]);
@@ -94,15 +95,24 @@ export default function BuildPage() {
         setBuildStatus('building');
         setBuildLogs(logs => [...logs, `Build started with ID: ${buildId}`, '---']);
         
+        // Infer WebSocket protocol from the main window's protocol
         const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const wsUrl = `${wsProtocol}//${window.location.host}${LOG_SERVER_URL_BASE}/${buildId}`;
+        // Construct WebSocket URL based on the build server's hostname
+        const buildServerHost = new URL(BUILD_SERVER_URL).host;
+        const wsUrl = `${wsProtocol}//${buildServerHost}/logs?buildId=${buildId}`;
 
         const socket = new WebSocket(wsUrl);
+        
+        socket.onopen = () => {
+            console.log("WebSocket connection established.");
+        };
+
         socket.onmessage = (event) => {
             const newLog = event.data;
             if (newLog.includes("BUILD_SUCCESS")) {
-                setPreviewUrl(`${PREVIEW_URL_BASE}/${buildId}/index.html`);
+                setPreviewUrl(`${PREVIEW_URL_BASE}/${buildId}/project/build/web/index.html`);
                 setBuildStatus('success');
+                setActiveTab('preview');
                 setBuildLogs(logs => [...logs, '---', 'Build successful!']);
                 socket.close();
             } else if (newLog.includes("BUILD_ERROR")) {
@@ -118,12 +128,13 @@ export default function BuildPage() {
         socket.onerror = (error) => {
             console.error("WebSocket Error:", error);
             setBuildStatus('error');
-            setBuildLogs(logs => [...logs, '---', 'Error connecting to build logs.']);
+            setBuildLogs(logs => [...logs, '---', 'Error connecting to build logs. Is your build server running?']);
         };
         socket.onclose = () => {
+            console.log("WebSocket connection closed.");
              if(buildStatus !== 'success' && buildStatus !== 'error') {
                 setBuildStatus('error');
-                setBuildLogs(logs => [...logs, '---', 'Connection to build logs closed.']);
+                setBuildLogs(logs => [...logs, '---', 'Connection to build logs closed unexpectedly.']);
              }
         };
 
@@ -140,7 +151,8 @@ export default function BuildPage() {
     setBuildStatus('idle');
     setBuildLogs([]);
     setPreviewUrl(null);
-    setActiveTab('code');
+    setActiveTab('logs');
+    setActiveCodeTab('main.dart');
 
     try {
       setLoadingMessage("Analyzing requirements...");
@@ -157,8 +169,7 @@ export default function BuildPage() {
       setLoadingMessage("Generating Flutter project...");
       const codeResult = await generateFlutterApp({ userPrompt: values.prompt });
       setGeneratedCode(codeResult);
-      setActiveTab('code');
-      setActiveCodeTab('main.dart');
+      
       startBuildProcess(codeResult);
 
     } catch (error: any) {
