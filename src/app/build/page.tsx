@@ -72,20 +72,33 @@ export default function BuildPage() {
       setLoadingMessage("Generating Flutter code...");
       const codeResult = await generateFlutterApp({ userPrompt: values.prompt });
       setGeneratedCode(codeResult.flutterCode);
+      setActiveTab('code'); // Switch to code tab first
 
       setLoadingMessage("Creating app preview...");
-      setActiveTab('preview');
       const previewResult = await generateFlutterPreview({ flutterCode: codeResult.flutterCode });
       setPreviewImage(previewResult.imageUrl);
+      setActiveTab('preview'); // Switch to preview once image is ready
 
-    } catch (error) {
+
+    } catch (error: any) {
       console.error("Error generating app:", error);
-      toast({
-        variant: "destructive",
-        title: "Oh no! Something went wrong.",
-        description:
-          "There was a problem generating your app. Please try again.",
-      });
+      const errorMessage = error.message || "An unknown error occurred.";
+
+      if (errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
+         toast({
+          variant: "destructive",
+          title: "AI Service Unavailable",
+          description:
+            "The AI model is currently overloaded. Please wait a moment and try again.",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Oh no! Something went wrong.",
+          description:
+            "There was a problem generating your app. Please try again.",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
