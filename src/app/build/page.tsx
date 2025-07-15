@@ -227,14 +227,14 @@ export default function BuildPage() {
 
   const renderBuildStatus = () => {
     switch(buildStatus) {
-        case 'zipping': return <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Zipping...</>
-        case 'uploading': return <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...</>
-        case 'building': return <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Building...</>
-        case 'success': return <><CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />Build Succeeded</>
-        case 'error': return <><XCircle className="mr-2 h-4 w-4 text-red-500" />Build Failed</>
-        default: return null
+        case 'zipping': return <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Zipping...</>;
+        case 'uploading': return <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...</>;
+        case 'building': return <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Building...</>;
+        case 'success': return <><CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />Build Succeeded</>;
+        case 'error': return <><XCircle className="mr-2 h-4 w-4 text-red-500" />Build Failed</>;
+        default: return null;
     }
-  }
+  };
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -347,7 +347,7 @@ export default function BuildPage() {
                             <TabsTrigger value="logs">
                                 <Terminal className="mr-2 h-4 w-4" />
                                 Logs
-                            </Tabs_Trigger>
+                            </TabsTrigger>
                             <TabsTrigger value="preview" disabled={buildStatus !== 'success'}>
                                 <Play className="mr-2 h-4 w-4" />
                                 Preview
