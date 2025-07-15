@@ -10,12 +10,12 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const GenerateFlutterPreviewInputSchema = z.object({
+const GenerateFlutterPreviewInputSchema = z.object({
   flutterCode: z.string().describe('The Flutter code to generate a preview for.'),
 });
 export type GenerateFlutterPreviewInput = z.infer<typeof GenerateFlutterPreviewInputSchema>;
 
-export const GenerateFlutterPreviewOutputSchema = z.object({
+const GenerateFlutterPreviewOutputSchema = z.object({
   imageUrl: z.string().url().describe('The data URI of the generated preview image.'),
 });
 export type GenerateFlutterPreviewOutput = z.infer<typeof GenerateFlutterPreviewOutputSchema>;
