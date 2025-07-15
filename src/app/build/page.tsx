@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import JSZip from "jszip";
-import { ArrowLeft, Bot, Code, FileCode, Play, Loader2, Sparkles, Terminal, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, Bot, FileCode, Play, Loader2, Sparkles, Terminal, CheckCircle2, XCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -35,7 +35,7 @@ type ActiveTab = 'logs' | 'preview';
 type ActiveCodeTab = 'main.dart' | 'pubspec.yaml';
 type BuildStatus = 'idle' | 'zipping' | 'uploading' | 'building' | 'success' | 'error';
 
-// IMPORTANT: Replace this with the URL of your deployed build server.
+// IMPORTANT: Replace this with the URL of your deployed build server if it's not running locally.
 const BUILD_SERVER_URL = "http://localhost:3001/api/flutter-build"; 
 // This should be the base URL for the final hosted apps.
 const PREVIEW_URL_BASE = "http://localhost:3001/builds"; 
@@ -88,40 +88,42 @@ export default function BuildPage() {
         });
 
         if (!response.ok) {
-            throw new Error(`Build server failed: ${await response.text()}`);
+            throw new Error(`Build server failed with status ${response.status}: ${await response.text()}`);
         }
         
         const { buildId } = await response.json();
         setBuildStatus('building');
         setBuildLogs(logs => [...logs, `Build started with ID: ${buildId}`, '---']);
         
-        // Infer WebSocket protocol from the main window's protocol
-        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        // Construct WebSocket URL based on the build server's hostname
+        // Use the build server's host for the WebSocket connection
         const buildServerHost = new URL(BUILD_SERVER_URL).host;
+        const wsProtocol = new URL(BUILD_SERVER_URL).protocol === "https:" ? "wss:" : "ws:";
         const wsUrl = `${wsProtocol}//${buildServerHost}/logs?buildId=${buildId}`;
 
         const socket = new WebSocket(wsUrl);
         
         socket.onopen = () => {
             console.log("WebSocket connection established.");
+            setBuildLogs(logs => [...logs, 'Connected to build server logs...']);
         };
 
         socket.onmessage = (event) => {
-            const newLog = event.data;
-            if (newLog.includes("BUILD_SUCCESS")) {
-                setPreviewUrl(`${PREVIEW_URL_BASE}/${buildId}/project/build/web/index.html`);
-                setBuildStatus('success');
-                setActiveTab('preview');
-                setBuildLogs(logs => [...logs, '---', 'Build successful!']);
-                socket.close();
-            } else if (newLog.includes("BUILD_ERROR")) {
-                setBuildStatus('error');
-                setBuildLogs(logs => [...logs, '---', 'Build failed.']);
-                socket.close();
-            }
-            else {
-                setBuildLogs(logs => [...logs, newLog]);
+            const message = event.data;
+            if (typeof message === 'string') {
+                const newLogs = message.split('\n').filter(log => log.trim() !== '');
+                if (message.includes("BUILD_SUCCESS")) {
+                    setPreviewUrl(`${PREVIEW_URL_BASE}/${buildId}/project/build/web/index.html`);
+                    setBuildStatus('success');
+                    setActiveTab('preview');
+                    setBuildLogs(logs => [...logs, '---', 'Build successful!']);
+                    socket.close();
+                } else if (message.includes("BUILD_ERROR")) {
+                    setBuildStatus('error');
+                    setBuildLogs(logs => [...logs, '---', 'Build failed. See logs for details.']);
+                    socket.close();
+                } else {
+                    setBuildLogs(logs => [...logs, ...newLogs]);
+                }
             }
         };
 
@@ -130,6 +132,7 @@ export default function BuildPage() {
             setBuildStatus('error');
             setBuildLogs(logs => [...logs, '---', 'Error connecting to build logs. Is your build server running?']);
         };
+
         socket.onclose = () => {
             console.log("WebSocket connection closed.");
              if(buildStatus !== 'success' && buildStatus !== 'error') {
@@ -141,6 +144,11 @@ export default function BuildPage() {
       } catch (error: any) {
           setBuildStatus('error');
           setBuildLogs(logs => [...logs, '---', `An error occurred: ${error.message}`]);
+           toast({
+              variant: "destructive",
+              title: "Build Failed",
+              description: "Could not connect to the build server. Please ensure it's running and accessible.",
+           });
       }
   }
 
@@ -170,6 +178,7 @@ export default function BuildPage() {
       const codeResult = await generateFlutterApp({ userPrompt: values.prompt });
       setGeneratedCode(codeResult);
       
+      // The build process is now started after code generation is complete
       startBuildProcess(codeResult);
 
     } catch (error: any) {
@@ -246,7 +255,7 @@ export default function BuildPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full" disabled={isLoading || (buildStatus !== 'idle' && buildStatus !== 'success' && buildStatus !== 'error')}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
