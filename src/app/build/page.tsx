@@ -22,7 +22,6 @@ import { useToast } from "@/hooks/use-toast";
 import { determineImportantRequirement } from "@/ai/flows/determine-important-requirement";
 import { generateFlutterApp, GenerateFlutterAppOutput } from "@/ai/flows/generate-flutter-app";
 import { CodeDisplay } from "@/components/code-display";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   PanelGroup,
@@ -58,7 +57,6 @@ export default function BuildPage() {
   const [buildLogs, setBuildLogs] = useState<string[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-
   const { toast } = useToast();
   const logContainerRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -240,7 +238,7 @@ export default function BuildPage() {
       setIsGenerating(false);
     }
   }
-
+  
   const renderBuildStatus = () => {
     switch(buildStatus) {
         case 'zipping': return <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Zipping...</>;
@@ -288,6 +286,46 @@ export default function BuildPage() {
       <PanelGroup direction="horizontal" className="flex-1">
         <Panel defaultSize={30} minSize={25}>
           <div className="flex h-full flex-col">
+            <div className="h-[40%] border-b border-slate-800 flex flex-col">
+                <div className="flex items-center justify-between p-4 border-b border-slate-800">
+                    <h3 className="text-lg font-semibold">Files</h3>
+                    <Search className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="p-4">
+                    <Input placeholder="Search Files" className="bg-slate-900 border-slate-700"/>
+                </div>
+                <ScrollArea className="flex-1 px-4">
+                    <div className="mt-2 space-y-1">
+                        <div className="flex items-center gap-2 p-1 rounded-md text-slate-300">
+                            <Folder className="h-4 w-4"/>
+                            <span>project</span>
+                        </div>
+                         <div className="ml-4 flex items-center gap-2 p-1 rounded-md text-slate-300">
+                            <Folder className="h-4 w-4"/>
+                            <span>lib</span>
+                        </div>
+                         <button
+                            onClick={() => setActiveTab('main.dart')}
+                            disabled={!generatedCode}
+                            className="w-full text-left ml-8 flex items-center gap-2 p-1 rounded-md text-slate-300 hover:bg-slate-800 disabled:opacity-50 data-[active=true]:bg-slate-800"
+                            data-active={activeTab === 'main.dart'}
+                         >
+                            <FileIcon className="h-4 w-4 text-slate-400"/>
+                            <span>main.dart</span>
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('pubspec.yaml')}
+                            disabled={!generatedCode}
+                            className="w-full text-left ml-4 flex items-center gap-2 p-1 rounded-md text-slate-300 hover:bg-slate-800 disabled:opacity-50 data-[active=true]:bg-slate-800"
+                            data-active={activeTab === 'pubspec.yaml'}
+                         >
+                            <FileIcon className="h-4 w-4 text-slate-400"/>
+                            <span>pubspec.yaml</span>
+                        </button>
+                    </div>
+                </ScrollArea>
+            </div>
+            <PanelResizeHandle className="h-px bg-slate-800" />
             <div className="flex-1 flex flex-col p-4 gap-4">
               <ScrollArea className="flex-1" ref={chatContainerRef}>
                   <div className="pr-4">
@@ -333,46 +371,6 @@ export default function BuildPage() {
                   </form>
                 </Form>
               </div>
-            </div>
-            <PanelResizeHandle className="w-px bg-slate-800" />
-            <div className="h-[40%] border-t border-slate-800 flex flex-col">
-                <div className="p-4">
-                    <h3 className="text-lg font-semibold mb-2">Files</h3>
-                    <div className="relative">
-                        <Input placeholder="Search Files" className="pl-8 bg-slate-900 border-slate-700"/>
-                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    </div>
-                </div>
-                <ScrollArea className="flex-1 px-4">
-                    <div className="mt-2 space-y-1">
-                        <div className="flex items-center gap-2 p-1 rounded-md text-slate-300">
-                            <Folder className="h-4 w-4"/>
-                            <span>project</span>
-                        </div>
-                         <div className="ml-4 flex items-center gap-2 p-1 rounded-md text-slate-300">
-                            <Folder className="h-4 w-4"/>
-                            <span>lib</span>
-                        </div>
-                         <button
-                            onClick={() => setActiveTab('main.dart')}
-                            disabled={!generatedCode}
-                            className="w-full text-left ml-8 flex items-center gap-2 p-1 rounded-md text-slate-300 hover:bg-slate-800 disabled:opacity-50 data-[active=true]:bg-slate-800"
-                            data-active={activeTab === 'main.dart'}
-                         >
-                            <FileIcon className="h-4 w-4 text-slate-400"/>
-                            <span>main.dart</span>
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('pubspec.yaml')}
-                            disabled={!generatedCode}
-                            className="w-full text-left ml-4 flex items-center gap-2 p-1 rounded-md text-slate-300 hover:bg-slate-800 disabled:opacity-50 data-[active=true]:bg-slate-800"
-                            data-active={activeTab === 'pubspec.yaml'}
-                         >
-                            <FileIcon className="h-4 w-4 text-slate-400"/>
-                            <span>pubspec.yaml</span>
-                        </button>
-                    </div>
-                </ScrollArea>
             </div>
           </div>
         </Panel>
