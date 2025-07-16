@@ -290,6 +290,57 @@ export default function BuildPage() {
     </div>
   )
 
+  const renderChatPanel = () => (
+    <div className="w-full h-full bg-card border-r flex flex-col">
+      <div className="p-3 border-b">
+        <div className="flex items-center gap-2">
+          <MessageCircle className="w-4 h-4" />
+          <span className="text-sm font-medium">Chat</span>
+        </div>
+      </div>
+      <ScrollArea className="flex-1 p-3" ref={chatContainerRef}>
+          <div className="space-y-4 pr-2">{chatHistory.map(renderMessage)}</div>
+          { isLoading && <div className="flex items-center gap-2 text-sm text-muted-foreground my-4">
+              <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+              <span>Working...</span>
+          </div>}
+      </ScrollArea>
+      <div className="p-3 border-t">
+          <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+              <FormField
+                  control={form.control}
+                  name="prompt"
+                  render={({ field }) => (
+                      <FormItem>
+                          <FormControl>
+                              <div className="relative">
+                                  <Input
+                                      placeholder="Ask AI App Forge..."
+                                      className="bg-input border-border text-sm pr-10"
+                                      {...field}
+                                      onKeyDown={(e) => {
+                                          if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
+                                              e.preventDefault();
+                                              form.handleSubmit(onSubmit)();
+                                          }
+                                      }}
+                                  />
+                                  <Button type="submit" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0" disabled={isLoading}>
+                                      <CornerDownLeft className="h-3 w-3" />
+                                  </Button>
+                              </div>
+                          </FormControl>
+                          <FormMessage />
+                      </FormItem>
+                  )}
+              />
+          </form>
+        </Form>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex h-screen w-full flex-col bg-background text-foreground">
       {/* Top Bar */}
@@ -322,61 +373,22 @@ export default function BuildPage() {
 
       <div className="flex flex-1 overflow-hidden">
         {isPreviewMode ? (
-          <div className="flex-1 p-2">
-            {renderPreviewPanel()}
-          </div>
+          <PanelGroup direction="horizontal">
+            <Panel defaultSize={25} minSize={20}>
+              {renderChatPanel()}
+            </Panel>
+            <PanelResizeHandle className="w-2 bg-border hover:bg-primary/20" />
+            <Panel defaultSize={75}>
+              <div className="p-2 h-full">
+                {renderPreviewPanel()}
+              </div>
+            </Panel>
+          </PanelGroup>
         ) : (
         <PanelGroup direction="horizontal">
           {/* Chat Panel */}
           <Panel defaultSize={25} minSize={20}>
-            <div className="w-full h-full bg-card border-r flex flex-col">
-              <div className="p-3 border-b">
-                <div className="flex items-center gap-2">
-                  <MessageCircle className="w-4 h-4" />
-                  <span className="text-sm font-medium">Chat</span>
-                </div>
-              </div>
-              <ScrollArea className="flex-1 p-3" ref={chatContainerRef}>
-                  <div className="space-y-4 pr-2">{chatHistory.map(renderMessage)}</div>
-                  { isLoading && <div className="flex items-center gap-2 text-sm text-muted-foreground my-4">
-                      <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-                      <span>Working...</span>
-                  </div>}
-              </ScrollArea>
-              <div className="p-3 border-t">
-                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)}>
-                      <FormField
-                          control={form.control}
-                          name="prompt"
-                          render={({ field }) => (
-                              <FormItem>
-                                  <FormControl>
-                                      <div className="relative">
-                                          <Input
-                                              placeholder="Ask AI App Forge..."
-                                              className="bg-input border-border text-sm pr-10"
-                                              {...field}
-                                              onKeyDown={(e) => {
-                                                  if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
-                                                      e.preventDefault();
-                                                      form.handleSubmit(onSubmit)();
-                                                  }
-                                              }}
-                                          />
-                                          <Button type="submit" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0" disabled={isLoading}>
-                                              <CornerDownLeft className="h-3 w-3" />
-                                          </Button>
-                                      </div>
-                                  </FormControl>
-                                  <FormMessage />
-                              </FormItem>
-                          )}
-                      />
-                  </form>
-                </Form>
-              </div>
-            </div>
+            {renderChatPanel()}
           </Panel>
           <PanelResizeHandle className="w-2 bg-border hover:bg-primary/20" />
           {/* File Explorer + Code Editor Panel */}
