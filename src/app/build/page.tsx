@@ -116,16 +116,18 @@ function BuildPageContent() {
     setChatHistory(prev => [...prev, { role: 'user', content: values.prompt }]);
     form.reset();
 
+    addSystemMessage("Analyzing requirements...");
+
     try {
-      addSystemMessage("Analyzing requirements...");
       const requirementCheck = await determineImportantRequirement({
         userRequest: values.prompt,
       });
 
       if (!requirementCheck.hasImportantRequirement) {
         setIsVaguePrompt(true);
+        // This is the only system message for vague prompts.
+        addSystemMessage(`Your request is a bit vague. ${requirementCheck.reasoning} Please provide more specific details for a better result.`);
         setIsGenerating(false);
-        addSystemMessage(`Your request is a bit vague. ${requirementCheck.reasoning} Try adding more specific details for a better result.`);
         return;
       }
 
@@ -145,14 +147,16 @@ function BuildPageContent() {
       setIsGenerating(false);
     }
   };
-
+  
+  const initialPromptRef = useRef(searchParams.get('prompt'));
+  
   useEffect(() => {
-    const initialPrompt = searchParams.get('prompt');
-    if (initialPrompt && !isGenerating && chatHistory.length === 1) {
-      form.setValue('prompt', initialPrompt);
-      handleFormSubmit({ prompt: initialPrompt });
+    if (initialPromptRef.current && chatHistory.length === 1) {
+      form.setValue('prompt', initialPromptRef.current);
+      handleFormSubmit({ prompt: initialPromptRef.current });
+      initialPromptRef.current = null; // Prevent re-submission
     }
-  }, [searchParams]);
+  }, []);
 
 
   useEffect(() => {
@@ -166,6 +170,7 @@ function BuildPageContent() {
   }, [chatHistory]);
 
   const handleFileClick = (file: FileName) => {
+    if (!generatedCode) return;
     if (!openTabs.includes(file)) {
       setOpenTabs(prev => [...prev, file]);
     }
@@ -343,7 +348,7 @@ function BuildPageContent() {
       </div>
       <ScrollArea className="flex-1 p-3" ref={chatContainerRef}>
           <div className="space-y-4 pr-2">{chatHistory.map(renderMessage)}</div>
-          { isLoading && <div className="flex items-center gap-2 text-sm text-muted-foreground my-4">
+          { isLoading && !isVaguePrompt && <div className="flex items-center gap-2 text-sm text-muted-foreground my-4">
               <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
               <span>Working...</span>
           </div>}
