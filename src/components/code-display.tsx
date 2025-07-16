@@ -9,12 +9,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 interface CodeDisplayProps {
   code: string;
+  className?: string;
 }
 
-export function CodeDisplay({ code }: CodeDisplayProps) {
+export function CodeDisplay({ code, className }: CodeDisplayProps) {
   const [hasCopied, setHasCopied] = useState(false);
 
   useEffect(() => {
@@ -33,17 +35,17 @@ export function CodeDisplay({ code }: CodeDisplayProps) {
     }
   };
 
-  const lineCount = code.split('\n').length;
+  const lines = code.split('\n');
 
   return (
-    <div className="relative rounded-lg bg-background h-full border p-0 font-mono text-sm text-foreground/90 flex overflow-hidden">
+    <div className={cn("relative rounded-lg bg-background h-full border font-mono text-sm text-foreground/90 overflow-auto", className)}>
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:bg-accent hover:text-accent-foreground z-10"
               onClick={copyToClipboard}
               aria-label="Copy code"
             >
@@ -59,12 +61,20 @@ export function CodeDisplay({ code }: CodeDisplayProps) {
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <div className="bg-background/50 text-right pr-4 pl-2 py-4 select-none text-muted-foreground border-r">
-        {Array.from({length: lineCount}, (_, i) => i + 1).join('\n')}
-      </div>
-      <pre className="whitespace-pre-wrap break-words h-full overflow-auto flex-1 py-4 px-2">
-        <code>{code}</code>
-      </pre>
+      <table className="w-full h-full text-left">
+        <tbody>
+          {lines.map((line, index) => (
+            <tr key={index}>
+              <td className="w-12 pr-4 pl-4 text-right select-none text-muted-foreground bg-background/50 border-r border-border">
+                {index + 1}
+              </td>
+              <td className="px-4 whitespace-pre-wrap break-all">
+                {line}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
