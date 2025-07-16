@@ -285,94 +285,98 @@ export default function BuildPage() {
       </header>
       <PanelGroup direction="horizontal" className="flex-1">
         <Panel defaultSize={30} minSize={25}>
-          <div className="flex h-full flex-col">
-            <div className="h-[40%] border-b border-slate-800 flex flex-col">
-                <div className="flex items-center justify-between p-4 border-b border-slate-800">
-                    <h3 className="text-lg font-semibold">Files</h3>
-                    <Search className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="p-4">
-                    <Input placeholder="Search Files" className="bg-slate-900 border-slate-700"/>
-                </div>
-                <ScrollArea className="flex-1 px-4">
-                    <div className="mt-2 space-y-1">
-                        <div className="flex items-center gap-2 p-1 rounded-md text-slate-300">
-                            <Folder className="h-4 w-4"/>
-                            <span>project</span>
+          <PanelGroup direction="vertical">
+            <Panel defaultSize={50} minSize={30}>
+              <div className="flex h-full flex-col">
+                  <div className="flex items-center justify-between p-4 border-b border-slate-800">
+                      <h3 className="text-lg font-semibold">Files</h3>
+                      <Search className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="p-4">
+                      <Input placeholder="Search Files" className="bg-slate-900 border-slate-700"/>
+                  </div>
+                  <ScrollArea className="flex-1 px-4">
+                      <div className="mt-2 space-y-1">
+                          <div className="flex items-center gap-2 p-1 rounded-md text-slate-300">
+                              <Folder className="h-4 w-4"/>
+                              <span>project</span>
+                          </div>
+                          <div className="ml-4 flex items-center gap-2 p-1 rounded-md text-slate-300">
+                              <Folder className="h-4 w-4"/>
+                              <span>lib</span>
+                          </div>
+                          <button
+                              onClick={() => setActiveTab('main.dart')}
+                              disabled={!generatedCode}
+                              className="w-full text-left ml-8 flex items-center gap-2 p-1 rounded-md text-slate-300 hover:bg-slate-800 disabled:opacity-50 data-[active=true]:bg-slate-800"
+                              data-active={activeTab === 'main.dart'}
+                          >
+                              <FileIcon className="h-4 w-4 text-slate-400"/>
+                              <span>main.dart</span>
+                          </button>
+                          <button
+                              onClick={() => setActiveTab('pubspec.yaml')}
+                              disabled={!generatedCode}
+                              className="w-full text-left ml-4 flex items-center gap-2 p-1 rounded-md text-slate-300 hover:bg-slate-800 disabled:opacity-50 data-[active=true]:bg-slate-800"
+                              data-active={activeTab === 'pubspec.yaml'}
+                          >
+                              <FileIcon className="h-4 w-4 text-slate-400"/>
+                              <span>pubspec.yaml</span>
+                          </button>
+                      </div>
+                  </ScrollArea>
+              </div>
+            </Panel>
+            <PanelResizeHandle className="h-2 bg-slate-800 hover:bg-slate-700" />
+            <Panel defaultSize={50} minSize={20}>
+              <div className="flex-1 flex flex-col p-4 gap-4 h-full">
+                <ScrollArea className="flex-1" ref={chatContainerRef}>
+                    <div className="pr-4">
+                    {chatHistory.length === 0 && (
+                        <div className="flex h-full items-center justify-center">
+                            <p className="text-muted-foreground">Start by describing your app below.</p>
                         </div>
-                         <div className="ml-4 flex items-center gap-2 p-1 rounded-md text-slate-300">
-                            <Folder className="h-4 w-4"/>
-                            <span>lib</span>
-                        </div>
-                         <button
-                            onClick={() => setActiveTab('main.dart')}
-                            disabled={!generatedCode}
-                            className="w-full text-left ml-8 flex items-center gap-2 p-1 rounded-md text-slate-300 hover:bg-slate-800 disabled:opacity-50 data-[active=true]:bg-slate-800"
-                            data-active={activeTab === 'main.dart'}
-                         >
-                            <FileIcon className="h-4 w-4 text-slate-400"/>
-                            <span>main.dart</span>
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('pubspec.yaml')}
-                            disabled={!generatedCode}
-                            className="w-full text-left ml-4 flex items-center gap-2 p-1 rounded-md text-slate-300 hover:bg-slate-800 disabled:opacity-50 data-[active=true]:bg-slate-800"
-                            data-active={activeTab === 'pubspec.yaml'}
-                         >
-                            <FileIcon className="h-4 w-4 text-slate-400"/>
-                            <span>pubspec.yaml</span>
-                        </button>
+                    )}
+                    {chatHistory.map(renderMessage)}
                     </div>
                 </ScrollArea>
-            </div>
-            <PanelResizeHandle className="h-px bg-slate-800" />
-            <div className="flex-1 flex flex-col p-4 gap-4">
-              <ScrollArea className="flex-1" ref={chatContainerRef}>
-                  <div className="pr-4">
-                  {chatHistory.length === 0 && (
-                      <div className="flex h-full items-center justify-center">
-                          <p className="text-muted-foreground">Start by describing your app below.</p>
-                      </div>
-                  )}
-                  {chatHistory.map(renderMessage)}
-                  </div>
-              </ScrollArea>
-              <div className="mt-auto">
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)}>
-                      <FormField
-                          control={form.control}
-                          name="prompt"
-                          render={({ field }) => (
-                              <FormItem>
-                                  <FormControl>
-                                      <div className="relative">
-                                          <Textarea
-                                              placeholder="e.g., 'A simple todo list app...'"
-                                              className="min-h-[80px] resize-none pr-12"
-                                              {...field}
-                                              onKeyDown={(e) => {
-                                                  if (e.key === 'Enter' && !e.shiftKey) {
-                                                      e.preventDefault();
-                                                      form.handleSubmit(onSubmit)();
-                                                  }
-                                              }}
-                                          />
-                                          <Button type="submit" size="icon" className="absolute bottom-3 right-3 h-8 w-8" disabled={isLoading}>
-                                              <CornerDownLeft className="h-4 w-4" />
-                                              <span className="sr-only">Submit</span>
-                                          </Button>
-                                      </div>
-                                  </FormControl>
-                                  <FormMessage />
-                              </FormItem>
-                          )}
-                      />
-                  </form>
-                </Form>
+                <div className="mt-auto">
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)}>
+                        <FormField
+                            control={form.control}
+                            name="prompt"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormControl>
+                                        <div className="relative">
+                                            <Textarea
+                                                placeholder="e.g., 'A simple todo list app...'"
+                                                className="min-h-[80px] resize-none pr-12"
+                                                {...field}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                                        e.preventDefault();
+                                                        form.handleSubmit(onSubmit)();
+                                                    }
+                                                }}
+                                            />
+                                            <Button type="submit" size="icon" className="absolute bottom-3 right-3 h-8 w-8" disabled={isLoading}>
+                                                <CornerDownLeft className="h-4 w-4" />
+                                                <span className="sr-only">Submit</span>
+                                            </Button>
+                                        </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </form>
+                  </Form>
+                </div>
               </div>
-            </div>
-          </div>
+            </Panel>
+          </PanelGroup>
         </Panel>
         <PanelResizeHandle className="w-2 bg-slate-800 hover:bg-slate-700" />
         <Panel defaultSize={70} minSize={30}>
@@ -422,5 +426,3 @@ export default function BuildPage() {
     </div>
   );
 }
-
-    
