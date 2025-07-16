@@ -7,7 +7,6 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import JSZip from "jszip";
 import {
-  ArrowLeft,
   Bot,
   FileCode,
   Play,
@@ -42,7 +41,6 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { determineImportantRequirement } from "@/ai/flows/determine-important-requirement";
@@ -76,7 +74,6 @@ const PREVIEW_URL_BASE = "http://localhost:3001/builds";
 export default function BuildPage() {
   const [generatedCode, setGeneratedCode] = useState<GenerateFlutterAppOutput | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState("Generating...");
   const [isVaguePrompt, setIsVaguePrompt] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>('main.dart');
   const [buildStatus, setBuildStatus] = useState<BuildStatus>('idle');
@@ -85,6 +82,8 @@ export default function BuildPage() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
       { role: 'assistant', content: "I'll help you create a Flutter application. What would you like to build?"}
   ]);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+
   const { toast } = useToast();
   const logContainerRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -274,6 +273,22 @@ export default function BuildPage() {
         </div>
     );
   };
+  
+  const renderPreviewPanel = () => (
+    <div className="relative mx-auto w-full h-full rounded-lg border bg-background text-card-foreground shadow-sm flex items-center justify-center">
+    {previewUrl ? (
+        <iframe src={previewUrl} className="w-full h-full border-0" title="Flutter App Preview" />
+    ) : (
+        <div className="text-center p-4">
+            <Play className="mx-auto h-12 w-12 text-muted-foreground" />
+            <h3 className="mt-4 text-lg font-semibold">Live Preview</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+                The live preview will appear here once the build is complete.
+            </p>
+        </div>
+    )}
+    </div>
+  )
 
   return (
     <div className="flex h-screen w-full flex-col bg-background text-foreground">
@@ -292,6 +307,9 @@ export default function BuildPage() {
         </div>
 
         <div className="flex items-center gap-2">
+           <Button size="sm" variant="secondary" onClick={() => setIsPreviewMode(!isPreviewMode)}>
+              <Code className="w-4 h-4" />
+           </Button>
           <Button size="sm" variant="secondary" className="bg-secondary hover:bg-secondary/80">
             <Users className="w-4 h-4 mr-1" />
             Invite
@@ -303,6 +321,11 @@ export default function BuildPage() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
+        {isPreviewMode ? (
+          <div className="flex-1 p-2">
+            {renderPreviewPanel()}
+          </div>
+        ) : (
         <PanelGroup direction="horizontal">
           {/* Chat Panel */}
           <Panel defaultSize={25} minSize={20}>
@@ -437,19 +460,7 @@ export default function BuildPage() {
                               </div>
                           </TabsContent>
                           <TabsContent value="preview" className="m-0 h-full">
-                              <div className="relative mx-auto w-full h-full rounded-lg border bg-background text-card-foreground shadow-sm flex items-center justify-center">
-                              {previewUrl ? (
-                                  <iframe src={previewUrl} className="w-full h-full border-0" title="Flutter App Preview" />
-                              ) : (
-                                  <div className="text-center p-4">
-                                      <Play className="mx-auto h-12 w-12 text-muted-foreground" />
-                                      <h3 className="mt-4 text-lg font-semibold">Live Preview</h3>
-                                      <p className="mt-2 text-sm text-muted-foreground">
-                                          The live preview will appear here once the build is complete.
-                                      </p>
-                                  </div>
-                              )}
-                              </div>
+                              {renderPreviewPanel()}
                           </TabsContent>
                       </div>
                   </Tabs>
@@ -458,6 +469,7 @@ export default function BuildPage() {
             </PanelGroup>
           </Panel>
         </PanelGroup>
+        )}
       </div>
     </div>
   );
