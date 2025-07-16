@@ -26,10 +26,10 @@ import { CodeDisplay } from "@/components/code-display";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  ResizablePanelGroup,
-  ResizablePanel,
+  PanelGroup,
+  Panel,
   PanelResizeHandle,
-} from "@/components/ui/resizable";
+} from "react-resizable-panels";
 
 const formSchema = z.object({
   prompt: z
@@ -265,8 +265,8 @@ export default function BuildPage() {
            <div className="flex items-center gap-2 text-sm">{renderBuildStatus()}</div>
         </div>
       </header>
-      <ResizablePanelGroup direction="horizontal" className="flex-1">
-        <ResizablePanel defaultSize={25} minSize={20}>
+      <PanelGroup direction="horizontal" className="flex-1">
+        <Panel defaultSize={25} minSize={20}>
           <div className="flex h-full flex-col p-4 gap-4">
             <h2 className="text-xl font-semibold">Describe Your App</h2>
             <Form {...form}>
@@ -365,9 +365,9 @@ export default function BuildPage() {
                 </div>
             </div>
           </div>
-        </ResizablePanel>
-        <PanelResizeHandle withHandle />
-        <ResizablePanel defaultSize={75} minSize={30}>
+        </Panel>
+        <PanelResizeHandle className="w-2 bg-slate-800 hover:bg-slate-700" />
+        <Panel defaultSize={75} minSize={30}>
             <div className="h-full flex flex-col">
                 <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActiveTab)} className="w-full flex-1 flex flex-col">
                     <TabsList className="m-2">
@@ -409,8 +409,8 @@ export default function BuildPage() {
                     </div>
                 </Tabs>
             </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+        </Panel>
+      </PanelGroup>
     </div>
   );
 }

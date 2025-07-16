@@ -1,5 +1,2 @@
-"use client"
-
-import { ResizablePanelGroup, ResizablePanel, PanelResizeHandle } from "react-resizable-panels"
-
-export { ResizablePanelGroup, ResizablePanel, PanelResizeHandle }
+// This file is intentionally left empty.
+// The resizable panel components are now imported directly from the library in `build/page.tsx`.
