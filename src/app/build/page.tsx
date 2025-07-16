@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -53,6 +54,7 @@ import {
   PanelResizeHandle,
 } from "react-resizable-panels";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Icons } from "@/components/icons";
 
 const formSchema = z.object({
   prompt: z
@@ -65,6 +67,8 @@ type FileName = 'main.dart' | 'pubspec.yaml';
 type SpecialTab = 'logs' | 'preview';
 type ActiveTab = FileName | SpecialTab;
 
+type BuildStatus = 'idle' | 'zipping' | 'uploading' | 'building' | 'success' | 'error';
+
 type ChatMessage = {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -73,7 +77,8 @@ type ChatMessage = {
 const BUILD_SERVER_URL = "http://localhost:3001/api/flutter-build"; 
 const PREVIEW_URL_BASE = "http://localhost:3001/builds"; 
 
-export default function BuildPage() {
+function BuildPageContent() {
+  const searchParams = useSearchParams();
   const [generatedCode, setGeneratedCode] = useState<GenerateFlutterAppOutput | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isVaguePrompt, setIsVaguePrompt] = useState(false);
@@ -100,6 +105,16 @@ export default function BuildPage() {
   });
 
   useEffect(() => {
+    const initialPrompt = searchParams.get('prompt');
+    if (initialPrompt && !isGenerating && chatHistory.length === 1) {
+      form.setValue('prompt', initialPrompt);
+      // Automatically submit the form
+      onSubmit({ prompt: initialPrompt });
+    }
+  }, [searchParams, isGenerating, chatHistory]);
+
+
+  useEffect(() => {
     if (logContainerRef.current) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
@@ -124,6 +139,8 @@ export default function BuildPage() {
     if (activeTab === tabToClose) {
       if (newTabs.length > 0) {
         setActiveTab(newTabs[newTabs.length - 1]);
+      } else if (openTabs.includes('logs')) {
+        setActiveTab('logs');
       } else {
         setActiveTab(null);
       }
@@ -134,6 +151,7 @@ export default function BuildPage() {
       setBuildStatus('zipping');
       addSystemMessage('Zipping project files...');
       setBuildLogs(['Zipping project files...']);
+      setActiveTab('logs');
       const zip = new JSZip();
       
       const projectFolder = zip.folder("project");
@@ -255,7 +273,7 @@ export default function BuildPage() {
       if (!requirementCheck.hasImportantRequirement) {
         setIsVaguePrompt(true);
         setIsGenerating(false);
-        addSystemMessage("Your request is a bit vague. Try adding more specific details for a better result.");
+        addSystemMessage(`Your request is a bit vague. ${requirementCheck.reasoning} Try adding more specific details for a better result.`);
         return;
       }
 
@@ -287,7 +305,7 @@ export default function BuildPage() {
     if (isSystem) {
         return (
             <div key={index} className="flex items-center gap-2 text-sm text-muted-foreground my-4">
-                <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
                 <span>{msg.content}</span>
             </div>
         )
@@ -328,9 +346,14 @@ export default function BuildPage() {
       <ScrollArea className="flex-1 p-3" ref={chatContainerRef}>
           <div className="space-y-4 pr-2">{chatHistory.map(renderMessage)}</div>
           { isLoading && <div className="flex items-center gap-2 text-sm text-muted-foreground my-4">
-              <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
               <span>Working...</span>
           </div>}
+          {isVaguePrompt && !isLoading && (
+            <div className="my-4 p-3 bg-yellow-900/50 border border-yellow-700 rounded-lg text-sm text-yellow-200">
+              <p>Your request is a bit vague. Please provide more specific details about the features you want in your app for a better result.</p>
+            </div>
+          )}
       </ScrollArea>
       <div className="p-3 border-t">
           <Form {...form}>
@@ -380,15 +403,16 @@ export default function BuildPage() {
       {/* Top Bar */}
       <div className="flex shrink-0 items-center justify-between px-4 py-2 bg-card border-b">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-orange-400">🔥</span>
+          <Link href="/" className="flex items-center gap-2 text-sm font-bold">
+            <Icons.logo className="h-5 w-5 text-primary" />
             <span>AI App Forge</span>
-          </div>
+          </Link>
         </div>
 
         <div className="flex items-center gap-2">
-           <Button size="sm" variant="secondary" onClick={() => setIsPreviewMode(!isPreviewMode)}>
+           <Button size="sm" variant="ghost" onClick={() => setIsPreviewMode(!isPreviewMode)}>
               <Code className="w-4 h-4" />
+              <span className="sr-only">Toggle Preview Mode</span>
            </Button>
           <Button size="sm" variant="secondary" className="bg-secondary hover:bg-secondary/80">
             <Users className="w-4 h-4 mr-1" />
@@ -467,10 +491,11 @@ export default function BuildPage() {
                       </ScrollArea>
                       <div className="p-3 border-t">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            {buildStatus === 'building' && <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>}
+                            {buildStatus === 'idle' && <>Idle</>}
+                            {(buildStatus === 'building' || buildStatus === 'uploading' || buildStatus === 'zipping') && <Loader2 className="w-4 h-4 animate-spin"/>}
                             {buildStatus === 'success' && <CheckCircle2 className="w-4 h-4 text-green-500"/>}
                             {buildStatus === 'error' && <XCircle className="w-4 h-4 text-red-500"/>}
-                            <span className="capitalize">{buildStatus === 'uploading' ? 'uploading...' : buildStatus}</span>
+                            <span className="capitalize">{buildStatus}</span>
                         </div>
                     </div>
                   </div>
@@ -495,8 +520,11 @@ export default function BuildPage() {
                       
                       <div className="flex-1 overflow-y-auto p-2">
                         {openTabs.length === 0 && activeTab !== 'logs' && activeTab !== 'preview' && (
-                            <div className="flex h-full items-center justify-center text-muted-foreground">
-                              <p>Select a file to view its code or start a build.</p>
+                           <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground p-8">
+                              <Wand2 className="h-16 w-16 mb-4 text-primary/50" />
+                              <h2 className="text-xl font-semibold mb-2 text-foreground">Welcome to AI App Forge</h2>
+                              <p>Your generated code will appear here.</p>
+                              <p>Describe the app you want to build in the chat to get started.</p>
                             </div>
                         )}
 
@@ -527,4 +555,12 @@ export default function BuildPage() {
       </div>
     </div>
   );
+}
+
+export default function BuildPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <BuildPageContent />
+    </Suspense>
+  )
 }

@@ -13,7 +13,7 @@ export function Header() {
           </Link>
         </div>
         <div className="flex flex-1 items-center justify-end space-x-2">
-          <Button asChild>
+          <Button asChild variant="ghost">
             <Link href="/build">
               Start Building
             </Link>
