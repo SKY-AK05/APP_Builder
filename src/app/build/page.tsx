@@ -268,6 +268,16 @@ export default function BuildPage() {
     );
   };
 
+  const examplePrompts = [
+    { title: "Todo List App", prompt: "A simple todo list app where I can add and remove tasks. Tasks should be stored in a list. When a task is completed, it should be crossed out." },
+    { title: "Recipe Finder", prompt: "An app to find recipes. It should have a search bar to look for recipes by ingredients. Show a list of matching recipes with images and titles." },
+    { title: "Quote of the Day", prompt: "A simple app that displays a new inspirational quote every time I open it. It should have a button to show another quote. The quote should be centered on the screen." },
+  ];
+
+  const handleExamplePrompt = (prompt: string) => {
+    form.setValue("prompt", prompt);
+  };
+
   return (
     <div className="flex h-screen w-full flex-col bg-slate-950 text-slate-50">
       <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b border-slate-800 bg-slate-950 px-4 sm:px-6">
@@ -283,10 +293,9 @@ export default function BuildPage() {
            <div className="flex items-center gap-2 text-sm">{renderBuildStatus()}</div>
         </div>
       </header>
-      <PanelGroup direction="horizontal" className="flex-1">
-        <Panel defaultSize={30} minSize={25}>
-          <PanelGroup direction="vertical">
-            <Panel defaultSize={50} minSize={30}>
+      <div className="flex flex-1">
+        <PanelGroup direction="horizontal">
+          <Panel defaultSize={30} minSize={25}>
               <div className="flex h-full flex-col">
                   <div className="flex items-center justify-between p-4 border-b border-slate-800">
                       <h3 className="text-lg font-semibold">Files</h3>
@@ -326,103 +335,116 @@ export default function BuildPage() {
                       </div>
                   </ScrollArea>
               </div>
-            </Panel>
-            <PanelResizeHandle className="h-2 bg-slate-800 hover:bg-slate-700" />
-            <Panel defaultSize={50} minSize={20}>
-              <div className="flex-1 flex flex-col p-4 gap-4 h-full">
-                <ScrollArea className="flex-1" ref={chatContainerRef}>
-                    <div className="pr-4">
-                    {chatHistory.length === 0 && (
-                        <div className="flex h-full items-center justify-center">
-                            <p className="text-muted-foreground">Start by describing your app below.</p>
-                        </div>
-                    )}
-                    {chatHistory.map(renderMessage)}
-                    </div>
-                </ScrollArea>
-                <div className="mt-auto">
-                  <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)}>
-                        <FormField
-                            control={form.control}
-                            name="prompt"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormControl>
-                                        <div className="relative">
-                                            <Textarea
-                                                placeholder="e.g., 'A simple todo list app...'"
-                                                className="min-h-[80px] resize-none pr-12"
-                                                {...field}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                                        e.preventDefault();
-                                                        form.handleSubmit(onSubmit)();
-                                                    }
-                                                }}
-                                            />
-                                            <Button type="submit" size="icon" className="absolute bottom-3 right-3 h-8 w-8" disabled={isLoading}>
-                                                <CornerDownLeft className="h-4 w-4" />
-                                                <span className="sr-only">Submit</span>
-                                            </Button>
-                                        </div>
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    </form>
-                  </Form>
+          </Panel>
+          <PanelResizeHandle className="w-2 bg-slate-800 hover:bg-slate-700" />
+          <Panel defaultSize={70} minSize={30}>
+            <PanelGroup direction="vertical">
+              <Panel defaultSize={65} minSize={40}>
+                <div className="h-full flex flex-col">
+                  <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActiveTab)} className="w-full flex-1 flex flex-col">
+                      <TabsList className="m-2 bg-slate-900">
+                          <TabsTrigger value="main.dart" disabled={!generatedCode}><FileCode className="mr-2 h-4 w-4"/>main.dart</TabsTrigger>
+                          <TabsTrigger value="pubspec.yaml" disabled={!generatedCode}><FileCode className="mr-2 h-4 w-4"/>pubspec.yaml</TabsTrigger>
+                          <TabsTrigger value="logs"><Terminal className="mr-2 h-4 w-4" />Logs</TabsTrigger>
+                          <TabsTrigger value="preview" disabled={buildStatus !== 'success'}><Play className="mr-2 h-4 w-4" />Preview</TabsTrigger>
+                      </TabsList>
+                      
+                      <div className="flex-1 overflow-y-auto p-2">
+                          <TabsContent value="main.dart" className="m-0 h-full">
+                              <CodeDisplay code={generatedCode?.mainDart ?? "/*\n * Your generated main.dart code will appear here.\n * Describe your app in the chat on the left.\n */"} />
+                          </TabsContent>
+                          <TabsContent value="pubspec.yaml" className="m-0 h-full">
+                              <CodeDisplay code={generatedCode?.pubspec ?? "# Your generated pubspec.yaml will appear here."} />
+                          </TabsContent>
+                          <TabsContent value="logs" className="m-0 h-full">
+                              <div ref={logContainerRef} className="w-full h-full rounded-lg bg-slate-900 text-slate-100 font-mono text-sm p-4 overflow-y-auto">
+                                  {buildLogs.length > 0 ? buildLogs.map((log, i) => (
+                                      <div key={i} className="whitespace-pre-wrap">{log}</div>
+                                  )) : <div className="text-muted-foreground">Build logs will appear here when you generate an app.</div>}
+                              </div>
+                          </TabsContent>
+                          <TabsContent value="preview" className="m-0 h-full">
+                              <div className="relative mx-auto w-full h-full rounded-lg border border-slate-800 bg-slate-900 text-card-foreground shadow-sm flex items-center justify-center">
+                              {previewUrl ? (
+                                  <iframe src={previewUrl} className="w-full h-full border-0" title="Flutter App Preview" />
+                              ) : (
+                                  <div className="text-center p-4">
+                                      <Play className="mx-auto h-12 w-12 text-muted-foreground" />
+                                      <h3 className="mt-4 text-lg font-semibold">Live Preview</h3>
+                                      <p className="mt-2 text-sm text-muted-foreground">
+                                          The live preview will appear here once the build is complete.
+                                      </p>
+                                  </div>
+                              )}
+                              </div>
+                          </TabsContent>
+                      </div>
+                  </Tabs>
                 </div>
-              </div>
-            </Panel>
-          </PanelGroup>
-        </Panel>
-        <PanelResizeHandle className="w-2 bg-slate-800 hover:bg-slate-700" />
-        <Panel defaultSize={70} minSize={30}>
-            <div className="h-full flex flex-col">
-                <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActiveTab)} className="w-full flex-1 flex flex-col">
-                    <TabsList className="m-2 bg-slate-900">
-                        <TabsTrigger value="main.dart" disabled={!generatedCode}><FileCode className="mr-2 h-4 w-4"/>main.dart</TabsTrigger>
-                        <TabsTrigger value="pubspec.yaml" disabled={!generatedCode}><FileCode className="mr-2 h-4 w-4"/>pubspec.yaml</TabsTrigger>
-                        <TabsTrigger value="logs"><Terminal className="mr-2 h-4 w-4" />Logs</TabsTrigger>
-                        <TabsTrigger value="preview" disabled={buildStatus !== 'success'}><Play className="mr-2 h-4 w-4" />Preview</TabsTrigger>
-                    </TabsList>
-                    
-                    <div className="flex-1 overflow-y-auto p-2">
-                        <TabsContent value="main.dart" className="m-0 h-full">
-                            <CodeDisplay code={generatedCode?.mainDart ?? "/*\n * Your generated main.dart code will appear here.\n * Describe your app in the chat on the left.\n */"} />
-                        </TabsContent>
-                        <TabsContent value="pubspec.yaml" className="m-0 h-full">
-                            <CodeDisplay code={generatedCode?.pubspec ?? "# Your generated pubspec.yaml will appear here."} />
-                        </TabsContent>
-                        <TabsContent value="logs" className="m-0 h-full">
-                            <div ref={logContainerRef} className="w-full h-full rounded-lg bg-slate-900 text-slate-100 font-mono text-sm p-4 overflow-y-auto">
-                                {buildLogs.length > 0 ? buildLogs.map((log, i) => (
-                                    <div key={i} className="whitespace-pre-wrap">{log}</div>
-                                )) : <div className="text-muted-foreground">Build logs will appear here when you generate an app.</div>}
+              </Panel>
+              <PanelResizeHandle className="h-2 bg-slate-800 hover:bg-slate-700" />
+              <Panel defaultSize={35} minSize={20}>
+                  <div className="flex-1 flex flex-col p-4 gap-4 h-full">
+                    <ScrollArea className="flex-1" ref={chatContainerRef}>
+                        <div className="pr-4">
+                        {chatHistory.length === 0 && (
+                          <div className="space-y-4">
+                            <p className="text-muted-foreground">Start by describing your app, or try an example:</p>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                              {examplePrompts.map(p => (
+                                <Button key={p.title} variant="outline" className="h-auto justify-start text-left" onClick={() => handleExamplePrompt(p.prompt)}>
+                                  <div className="flex flex-col">
+                                    <span className="font-semibold">{p.title}</span>
+                                    <span className="text-xs text-muted-foreground line-clamp-2">{p.prompt}</span>
+                                  </div>
+                                </Button>
+                              ))}
                             </div>
-                        </TabsContent>
-                        <TabsContent value="preview" className="m-0 h-full">
-                            <div className="relative mx-auto w-full h-full rounded-lg border border-slate-800 bg-slate-900 text-card-foreground shadow-sm flex items-center justify-center">
-                            {previewUrl ? (
-                                <iframe src={previewUrl} className="w-full h-full border-0" title="Flutter App Preview" />
-                            ) : (
-                                <div className="text-center p-4">
-                                    <Play className="mx-auto h-12 w-12 text-muted-foreground" />
-                                    <h3 className="mt-4 text-lg font-semibold">Live Preview</h3>
-                                    <p className="mt-2 text-sm text-muted-foreground">
-                                        The live preview will appear here once the build is complete.
-                                    </p>
-                                </div>
-                            )}
-                            </div>
-                        </TabsContent>
+                          </div>
+                        )}
+                        {chatHistory.map(renderMessage)}
+                        </div>
+                    </ScrollArea>
+                    <div className="mt-auto">
+                      <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)}>
+                            <FormField
+                                control={form.control}
+                                name="prompt"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormControl>
+                                            <div className="relative">
+                                                <Textarea
+                                                    placeholder="e.g., 'A simple todo list app...'"
+                                                    className="min-h-[80px] resize-none pr-12"
+                                                    {...field}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                                            e.preventDefault();
+                                                            form.handleSubmit(onSubmit)();
+                                                        }
+                                                    }}
+                                                />
+                                                <Button type="submit" size="icon" className="absolute bottom-3 right-3 h-8 w-8" disabled={isLoading}>
+                                                    <CornerDownLeft className="h-4 w-4" />
+                                                    <span className="sr-only">Submit</span>
+                                                </Button>
+                                            </div>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </form>
+                      </Form>
                     </div>
-                </Tabs>
-            </div>
-        </Panel>
-      </PanelGroup>
+                  </div>
+              </Panel>
+            </PanelGroup>
+          </Panel>
+        </PanelGroup>
+      </div>
     </div>
   );
 }
