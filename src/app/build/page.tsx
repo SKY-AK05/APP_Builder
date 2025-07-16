@@ -61,8 +61,10 @@ const formSchema = z.object({
     .max(500, { message: "Prompt must not be longer than 500 characters." }),
 });
 
-type ActiveTab = 'main.dart' | 'pubspec.yaml' | 'logs' | 'preview';
-type BuildStatus = 'idle' | 'zipping' | 'uploading' | 'building' | 'success' | 'error';
+type FileName = 'main.dart' | 'pubspec.yaml';
+type SpecialTab = 'logs' | 'preview';
+type ActiveTab = FileName | SpecialTab;
+
 type ChatMessage = {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -75,7 +77,9 @@ export default function BuildPage() {
   const [generatedCode, setGeneratedCode] = useState<GenerateFlutterAppOutput | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isVaguePrompt, setIsVaguePrompt] = useState(false);
-  const [activeTab, setActiveTab] = useState<ActiveTab>('main.dart');
+  const [openTabs, setOpenTabs] = useState<FileName[]>([]);
+  const [activeTab, setActiveTab] = useState<ActiveTab | null>(null);
+
   const [buildStatus, setBuildStatus] = useState<BuildStatus>('idle');
   const [buildLogs, setBuildLogs] = useState<string[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -104,6 +108,27 @@ export default function BuildPage() {
   useEffect(() => {
     chatContainerRef.current?.scrollTo(0, chatContainerRef.current.scrollHeight);
   }, [chatHistory]);
+
+  const handleFileClick = (file: FileName) => {
+    if (!openTabs.includes(file)) {
+      setOpenTabs(prev => [...prev, file]);
+    }
+    setActiveTab(file);
+  };
+
+  const handleCloseTab = (tabToClose: FileName, e: React.MouseEvent) => {
+    e.stopPropagation(); 
+    const newTabs = openTabs.filter(tab => tab !== tabToClose);
+    setOpenTabs(newTabs);
+
+    if (activeTab === tabToClose) {
+      if (newTabs.length > 0) {
+        setActiveTab(newTabs[newTabs.length - 1]);
+      } else {
+        setActiveTab(null);
+      }
+    }
+  };
 
   const startBuildProcess = async (code: GenerateFlutterAppOutput) => {
       setBuildStatus('zipping');
@@ -212,11 +237,12 @@ export default function BuildPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsGenerating(true);
     setGeneratedCode(null);
+    setOpenTabs([]);
+    setActiveTab(null);
     setIsVaguePrompt(false);
     setBuildStatus('idle');
     setBuildLogs([]);
     setPreviewUrl(null);
-    setActiveTab('main.dart');
     setChatHistory(prev => [...prev, { role: 'user', content: values.prompt }]);
     form.reset();
 
@@ -236,11 +262,12 @@ export default function BuildPage() {
       addSystemMessage("Requirements look good! Generating Flutter project...");
       const codeResult = await generateFlutterApp({ userPrompt: values.prompt });
       setGeneratedCode(codeResult);
-      setActiveTab('main.dart');
+      handleFileClick('main.dart');
       
       startBuildProcess(codeResult);
 
-    } catch (error: any) {
+    } catch (error: any)
+ {
       console.error("Error generating app:", error);
       const errorMessage = error.message || "An unknown error occurred.";
       addSystemMessage(`An error occurred during generation: ${errorMessage}`);
@@ -340,6 +367,13 @@ export default function BuildPage() {
       </div>
     </div>
   );
+  
+  const getCodeContent = (tab: ActiveTab | null) => {
+    if (!tab || !generatedCode) return "";
+    if (tab === 'main.dart') return generatedCode.mainDart;
+    if (tab === 'pubspec.yaml') return generatedCode.pubspec;
+    return "";
+  }
 
   return (
     <div className="flex h-screen w-full flex-col bg-background text-foreground">
@@ -412,7 +446,7 @@ export default function BuildPage() {
                                   <span>lib</span>
                               </div>
                               <button
-                                  onClick={() => setActiveTab('main.dart')}
+                                  onClick={() => handleFileClick('main.dart')}
                                   disabled={!generatedCode}
                                   className="w-full text-left ml-8 flex items-center gap-2 p-1 rounded-md text-foreground/80 hover:bg-accent disabled:opacity-50 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
                                   data-active={activeTab === 'main.dart'}
@@ -421,7 +455,7 @@ export default function BuildPage() {
                                   <span>main.dart</span>
                               </button>
                               <button
-                                  onClick={() => setActiveTab('pubspec.yaml')}
+                                  onClick={() => handleFileClick('pubspec.yaml')}
                                   disabled={!generatedCode}
                                   className="w-full text-left ml-4 flex items-center gap-2 p-1 rounded-md text-foreground/80 hover:bg-accent disabled:opacity-50 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
                                   data-active={activeTab === 'pubspec.yaml'}
@@ -444,31 +478,44 @@ export default function BuildPage() {
               <PanelResizeHandle className="w-2 bg-border hover:bg-primary/20" />
               <Panel defaultSize={75} minSize={30}>
                 <div className="h-full flex flex-col bg-card">
-                  <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActiveTab)} className="w-full flex-1 flex flex-col">
+                  <Tabs value={activeTab ?? "placeholder"} onValueChange={(value) => setActiveTab(value as ActiveTab)} className="w-full flex-1 flex flex-col">
                       <TabsList className="m-2 bg-background border-b-0 rounded-lg">
-                          <TabsTrigger value="main.dart" disabled={!generatedCode}><FileCode className="mr-2 h-4 w-4"/>main.dart</TabsTrigger>
-                          <TabsTrigger value="pubspec.yaml" disabled={!generatedCode}><FileCode className="mr-2 h-4 w-4"/>pubspec.yaml</TabsTrigger>
-                          <TabsTrigger value="logs"><Terminal className="mr-2 h-4 w-4" />Logs</TabsTrigger>
-                          <TabsTrigger value="preview" disabled={buildStatus !== 'success'}><Play className="mr-2 h-4 w-4" />Preview</TabsTrigger>
+                          {openTabs.map(tab => (
+                            <TabsTrigger key={tab} value={tab} className="relative pr-8">
+                                <FileCode className="mr-2 h-4 w-4"/>
+                                {tab}
+                                <button onClick={(e) => handleCloseTab(tab, e)} className="absolute right-1 top-1/2 -translate-y-1/2 rounded-sm p-0.5 hover:bg-muted-foreground/20">
+                                  <X className="h-3 w-3" />
+                                </button>
+                            </TabsTrigger>
+                          ))}
+                          <TabsTrigger value="logs" onClick={() => setActiveTab('logs')}><Terminal className="mr-2 h-4 w-4" />Logs</TabsTrigger>
+                          <TabsTrigger value="preview" onClick={() => setActiveTab('preview')} disabled={buildStatus !== 'success'}><Play className="mr-2 h-4 w-4" />Preview</TabsTrigger>
                       </TabsList>
                       
                       <div className="flex-1 overflow-y-auto p-2">
-                          <TabsContent value="main.dart" className="m-0 h-full">
-                              <CodeDisplay code={generatedCode?.mainDart ?? "/*\n * Your generated main.dart code will appear here.\n * Describe your app in the chat on the left.\n */"} />
+                        {openTabs.length === 0 && activeTab !== 'logs' && activeTab !== 'preview' && (
+                            <div className="flex h-full items-center justify-center text-muted-foreground">
+                              <p>Select a file to view its code or start a build.</p>
+                            </div>
+                        )}
+
+                        {openTabs.map(tab => (
+                          <TabsContent key={tab} value={tab} className="m-0 h-full">
+                            <CodeDisplay code={getCodeContent(tab) ?? ""} />
                           </TabsContent>
-                          <TabsContent value="pubspec.yaml" className="m-0 h-full">
-                              <CodeDisplay code={generatedCode?.pubspec ?? "# Your generated pubspec.yaml will appear here."} />
-                          </TabsContent>
-                          <TabsContent value="logs" className="m-0 h-full">
-                              <div ref={logContainerRef} className="w-full h-full rounded-lg bg-background text-foreground/80 font-mono text-sm p-4 overflow-y-auto">
-                                  {buildLogs.length > 0 ? buildLogs.map((log, i) => (
-                                      <div key={i} className="whitespace-pre-wrap">{log}</div>
-                                  )) : <div className="text-muted-foreground">Build logs will appear here when you generate an app.</div>}
-                              </div>
-                          </TabsContent>
-                          <TabsContent value="preview" className="m-0 h-full">
-                              {renderPreviewPanel()}
-                          </TabsContent>
+                        ))}
+                        
+                        <TabsContent value="logs" className="m-0 h-full">
+                            <div ref={logContainerRef} className="w-full h-full rounded-lg bg-background text-foreground/80 font-mono text-sm p-4 overflow-y-auto">
+                                {buildLogs.length > 0 ? buildLogs.map((log, i) => (
+                                    <div key={i} className="whitespace-pre-wrap">{log}</div>
+                                )) : <div className="text-muted-foreground">Build logs will appear here when you generate an app.</div>}
+                            </div>
+                        </TabsContent>
+                        <TabsContent value="preview" className="m-0 h-full">
+                            {renderPreviewPanel()}
+                        </TabsContent>
                       </div>
                   </Tabs>
                 </div>
