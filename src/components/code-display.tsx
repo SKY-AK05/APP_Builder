@@ -33,15 +33,17 @@ export function CodeDisplay({ code }: CodeDisplayProps) {
     }
   };
 
+  const lineCount = code.split('\n').length;
+
   return (
-    <div className="relative rounded-lg bg-slate-900 h-full border border-slate-800 p-4 font-mono text-sm text-slate-100">
+    <div className="relative rounded-lg bg-background h-full border p-0 font-mono text-sm text-foreground/90 flex overflow-hidden">
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="absolute top-2 right-2 h-8 w-8 text-slate-400 hover:bg-slate-700 hover:text-white"
+              className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               onClick={copyToClipboard}
               aria-label="Copy code"
             >
@@ -57,7 +59,10 @@ export function CodeDisplay({ code }: CodeDisplayProps) {
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <pre className="whitespace-pre-wrap break-words h-full overflow-auto">
+      <div className="bg-background/50 text-right pr-4 pl-2 py-4 select-none text-muted-foreground border-r">
+        {Array.from({length: lineCount}, (_, i) => i + 1).join('\n')}
+      </div>
+      <pre className="whitespace-pre-wrap break-words h-full overflow-auto flex-1 py-4 px-2">
         <code>{code}</code>
       </pre>
     </div>
