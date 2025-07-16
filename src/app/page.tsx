@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -48,7 +47,7 @@ export default function Home() {
             aria-hidden="true"
             className="absolute inset-0 top-0 -z-10 h-full w-full bg-background"
           >
-            <div className="absolute bottom-auto left-auto right-0 top-0 h-[500px] w-[500px] -translate-x-[20%] translate-y-[20%] rounded-full bg-[rgba(12,87,79,0.5)] opacity-50 blur-[80px]"></div>
+            <div className="absolute bottom-auto left-auto right-0 top-0 h-[500px] w-[500px] -translate-x-[20%] translate-y-[20%] rounded-full bg-[rgba(217, 91, 60, 0.15)] opacity-50 blur-[80px]"></div>
           </div>
 
           <div className="container relative text-center">

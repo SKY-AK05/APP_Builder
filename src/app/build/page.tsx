@@ -104,14 +104,55 @@ function BuildPageContent() {
     },
   });
 
+  const handleFormSubmit = async (values: z.infer<typeof formSchema>) => {
+    setIsGenerating(true);
+    setGeneratedCode(null);
+    setOpenTabs([]);
+    setActiveTab(null);
+    setIsVaguePrompt(false);
+    setBuildStatus('idle');
+    setBuildLogs([]);
+    setPreviewUrl(null);
+    setChatHistory(prev => [...prev, { role: 'user', content: values.prompt }]);
+    form.reset();
+
+    try {
+      addSystemMessage("Analyzing requirements...");
+      const requirementCheck = await determineImportantRequirement({
+        userRequest: values.prompt,
+      });
+
+      if (!requirementCheck.hasImportantRequirement) {
+        setIsVaguePrompt(true);
+        setIsGenerating(false);
+        addSystemMessage(`Your request is a bit vague. ${requirementCheck.reasoning} Try adding more specific details for a better result.`);
+        return;
+      }
+
+      addSystemMessage("Requirements look good! Generating Flutter project...");
+      const codeResult = await generateFlutterApp({ userPrompt: values.prompt });
+      setGeneratedCode(codeResult);
+      handleFileClick('main.dart');
+      
+      await startBuildProcess(codeResult);
+
+    } catch (error: any) {
+      console.error("Error generating app:", error);
+      const errorMessage = error.message || "An unknown error occurred.";
+      addSystemMessage(`An error occurred during generation: ${errorMessage}`);
+      setBuildStatus('error');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   useEffect(() => {
     const initialPrompt = searchParams.get('prompt');
     if (initialPrompt && !isGenerating && chatHistory.length === 1) {
       form.setValue('prompt', initialPrompt);
-      // Automatically submit the form
-      onSubmit({ prompt: initialPrompt });
+      handleFormSubmit({ prompt: initialPrompt });
     }
-  }, [searchParams, isGenerating, chatHistory]);
+  }, [searchParams]);
 
 
   useEffect(() => {
@@ -251,49 +292,6 @@ function BuildPageContent() {
   const addSystemMessage = (content: string) => {
     setChatHistory(prev => [...prev, { role: 'system', content }]);
   }
-
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsGenerating(true);
-    setGeneratedCode(null);
-    setOpenTabs([]);
-    setActiveTab(null);
-    setIsVaguePrompt(false);
-    setBuildStatus('idle');
-    setBuildLogs([]);
-    setPreviewUrl(null);
-    setChatHistory(prev => [...prev, { role: 'user', content: values.prompt }]);
-    form.reset();
-
-    try {
-      addSystemMessage("Analyzing requirements...");
-      const requirementCheck = await determineImportantRequirement({
-        userRequest: values.prompt,
-      });
-
-      if (!requirementCheck.hasImportantRequirement) {
-        setIsVaguePrompt(true);
-        setIsGenerating(false);
-        addSystemMessage(`Your request is a bit vague. ${requirementCheck.reasoning} Try adding more specific details for a better result.`);
-        return;
-      }
-
-      addSystemMessage("Requirements look good! Generating Flutter project...");
-      const codeResult = await generateFlutterApp({ userPrompt: values.prompt });
-      setGeneratedCode(codeResult);
-      handleFileClick('main.dart');
-      
-      startBuildProcess(codeResult);
-
-    } catch (error: any)
- {
-      console.error("Error generating app:", error);
-      const errorMessage = error.message || "An unknown error occurred.";
-      addSystemMessage(`An error occurred during generation: ${errorMessage}`);
-      setBuildStatus('error');
-    } finally {
-      setIsGenerating(false);
-    }
-  }
   
   const isLoading = isGenerating || (buildStatus !== 'idle' && buildStatus !== 'success' && buildStatus !== 'error');
 
@@ -357,7 +355,7 @@ function BuildPageContent() {
       </ScrollArea>
       <div className="p-3 border-t">
           <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+          <form onSubmit={form.handleSubmit(handleFormSubmit)}>
               <FormField
                   control={form.control}
                   name="prompt"
@@ -372,7 +370,7 @@ function BuildPageContent() {
                                       onKeyDown={(e) => {
                                           if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
                                               e.preventDefault();
-                                              form.handleSubmit(onSubmit)();
+                                              form.handleSubmit(handleFormSubmit)();
                                           }
                                       }}
                                   />
@@ -514,8 +512,8 @@ function BuildPageContent() {
                                 </button>
                             </TabsTrigger>
                           ))}
-                          <TabsTrigger value="logs" onClick={() => setActiveTab('logs')}><Terminal className="mr-2 h-4 w-4" />Logs</TabsTrigger>
-                          <TabsTrigger value="preview" onClick={() => setActiveTab('preview')} disabled={buildStatus !== 'success'}><Play className="mr-2 h-4 w-4" />Preview</TabsTrigger>
+                           <TabsTrigger value="logs" onClick={() => setActiveTab('logs')}><Terminal className="mr-2 h-4 w-4" />Logs</TabsTrigger>
+                           <TabsTrigger value="preview" onClick={() => setActiveTab('preview')} disabled={buildStatus !== 'success'}><Play className="mr-2 h-4 w-4" />Preview</TabsTrigger>
                       </TabsList>
                       
                       <div className="flex-1 overflow-y-auto p-2">
