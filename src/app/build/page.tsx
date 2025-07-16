@@ -45,6 +45,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { determineImportantRequirement } from "@/ai/flows/determine-important-requirement";
+import { enhanceUserPrompt } from "@/ai/flows/enhance-user-prompt";
 import { generateFlutterApp, GenerateFlutterAppOutput } from "@/ai/flows/generate-flutter-app";
 import { CodeDisplay } from "@/components/code-display";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -81,9 +82,8 @@ function BuildPageContent() {
   const searchParams = useSearchParams();
   const [generatedCode, setGeneratedCode] = useState<GenerateFlutterAppOutput | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isVaguePrompt, setIsVaguePrompt] = useState(false);
-  const [openTabs, setOpenTabs] = useState<FileName[]>([]);
-  const [activeTab, setActiveTab] = useState<ActiveTab | null>(null);
+  const [openTabs, setOpenTabs] = useState<FileName[]>(['main.dart']);
+  const [activeTab, setActiveTab] = useState<ActiveTab | null>('main.dart');
 
   const [buildStatus, setBuildStatus] = useState<BuildStatus>('idle');
   const [buildLogs, setBuildLogs] = useState<string[]>([]);
@@ -109,7 +109,6 @@ function BuildPageContent() {
     setGeneratedCode(null);
     setOpenTabs([]);
     setActiveTab(null);
-    setIsVaguePrompt(false);
     setBuildStatus('idle');
     setBuildLogs([]);
     setPreviewUrl(null);
@@ -123,16 +122,18 @@ function BuildPageContent() {
         userRequest: values.prompt,
       });
 
+      let finalPrompt = values.prompt;
+
       if (!requirementCheck.hasImportantRequirement) {
-        setIsVaguePrompt(true);
-        // This is the only system message for vague prompts.
-        addSystemMessage(`Your request is a bit vague. ${requirementCheck.reasoning} Please provide more specific details for a better result.`);
-        setIsGenerating(false);
-        return;
+        addSystemMessage("Request is a bit vague, enhancing it with more details...");
+        const enhancedResult = await enhanceUserPrompt({ userRequest: values.prompt });
+        finalPrompt = enhancedResult.enhancedPrompt;
+        addSystemMessage(`New prompt: "${finalPrompt}"`);
       }
 
+
       addSystemMessage("Requirements look good! Generating Flutter project...");
-      const codeResult = await generateFlutterApp({ userPrompt: values.prompt });
+      const codeResult = await generateFlutterApp({ userPrompt: finalPrompt });
       setGeneratedCode(codeResult);
       handleFileClick('main.dart');
       
@@ -348,15 +349,10 @@ function BuildPageContent() {
       </div>
       <ScrollArea className="flex-1 p-3" ref={chatContainerRef}>
           <div className="space-y-4 pr-2">{chatHistory.map(renderMessage)}</div>
-          { isLoading && !isVaguePrompt && <div className="flex items-center gap-2 text-sm text-muted-foreground my-4">
+          { isLoading && <div className="flex items-center gap-2 text-sm text-muted-foreground my-4">
               <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
               <span>Working...</span>
           </div>}
-          {isVaguePrompt && !isLoading && (
-            <div className="my-4 p-3 bg-yellow-900/50 border border-yellow-700 rounded-lg text-sm text-yellow-200">
-              <p>Your request is a bit vague. Please provide more specific details about the features you want in your app for a better result.</p>
-            </div>
-          )}
       </ScrollArea>
       <div className="p-3 border-t">
           <Form {...form}>
