@@ -34,7 +34,7 @@ export function CodeDisplay({ code }: CodeDisplayProps) {
   };
 
   return (
-    <div className="relative rounded-lg bg-slate-900 border border-slate-700/50 p-4 font-mono text-sm text-slate-100">
+    <div className="relative rounded-lg bg-slate-900 h-full border border-slate-800 p-4 font-mono text-sm text-slate-100">
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -57,7 +57,7 @@ export function CodeDisplay({ code }: CodeDisplayProps) {
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <pre className="whitespace-pre-wrap break-words overflow-x-auto">
+      <pre className="whitespace-pre-wrap break-words h-full overflow-auto">
         <code>{code}</code>
       </pre>
     </div>

@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import JSZip from "jszip";
-import { ArrowLeft, Bot, FileCode, Play, Loader2, Sparkles, Terminal, CheckCircle2, XCircle, Wand2 } from "lucide-react";
+import { ArrowLeft, Bot, FileCode, Play, Loader2, Sparkles, Terminal, CheckCircle2, XCircle, Wand2, Folder, File as FileIcon, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,14 +15,21 @@ import {
   FormField,
   FormItem,
   FormMessage,
+  FormLabel,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { determineImportantRequirement } from "@/ai/flows/determine-important-requirement";
 import { generateFlutterApp, GenerateFlutterAppOutput } from "@/ai/flows/generate-flutter-app";
 import { CodeDisplay } from "@/components/code-display";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 
 const formSchema = z.object({
   prompt: z
@@ -31,8 +38,7 @@ const formSchema = z.object({
     .max(500, { message: "Prompt must not be longer than 500 characters." }),
 });
 
-type ActiveTab = 'logs' | 'preview';
-type ActiveCodeTab = 'main.dart' | 'pubspec.yaml';
+type ActiveTab = 'main.dart' | 'pubspec.yaml' | 'logs' | 'preview';
 type BuildStatus = 'idle' | 'zipping' | 'uploading' | 'building' | 'success' | 'error';
 
 const BUILD_SERVER_URL = "http://localhost:3001/api/flutter-build"; 
@@ -59,11 +65,10 @@ const examplePrompts = [
 
 export default function BuildPage() {
   const [generatedCode, setGeneratedCode] = useState<GenerateFlutterAppOutput | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("Generating...");
   const [isVaguePrompt, setIsVaguePrompt] = useState(false);
-  const [activeTab, setActiveTab] = useState<ActiveTab>('logs');
-  const [activeCodeTab, setActiveCodeTab] = useState<ActiveCodeTab>('main.dart');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('main.dart');
   const [buildStatus, setBuildStatus] = useState<BuildStatus>('idle');
   const [buildLogs, setBuildLogs] = useState<string[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -74,7 +79,7 @@ export default function BuildPage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      prompt: "",
+      prompt: "A simple todo list app where users can add tasks, mark them as complete by tapping, and delete them. Completed tasks should look different from pending tasks.",
     },
   });
 
@@ -92,8 +97,12 @@ export default function BuildPage() {
       setBuildStatus('zipping');
       setBuildLogs(['Zipping project files...']);
       const zip = new JSZip();
-      zip.file("main.dart", code.mainDart);
+      zip.file("lib/main.dart", code.mainDart);
       zip.file("pubspec.yaml", code.pubspec);
+      
+      const projectFolder = zip.folder("project");
+      projectFolder!.file("lib/main.dart", code.mainDart);
+      projectFolder!.file("pubspec.yaml", code.pubspec);
       
       try {
         const content = await zip.generateAsync({ type: "blob" });
@@ -173,14 +182,13 @@ export default function BuildPage() {
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true);
+    setIsGenerating(true);
     setGeneratedCode(null);
     setIsVaguePrompt(false);
     setBuildStatus('idle');
     setBuildLogs([]);
     setPreviewUrl(null);
-    setActiveTab('logs');
-    setActiveCodeTab('main.dart');
+    setActiveTab('main.dart');
 
     try {
       setLoadingMessage("Analyzing requirements...");
@@ -190,13 +198,14 @@ export default function BuildPage() {
 
       if (!requirementCheck.hasImportantRequirement) {
         setIsVaguePrompt(true);
-        setIsLoading(false);
+        setIsGenerating(false);
         return;
       }
 
       setLoadingMessage("Generating Flutter project...");
       const codeResult = await generateFlutterApp({ userPrompt: values.prompt });
       setGeneratedCode(codeResult);
+      setActiveTab('main.dart');
       
       startBuildProcess(codeResult);
 
@@ -221,7 +230,7 @@ export default function BuildPage() {
       }
       setBuildStatus('error');
     } finally {
-      setIsLoading(false);
+      setIsGenerating(false);
     }
   }
 
@@ -232,13 +241,15 @@ export default function BuildPage() {
         case 'building': return <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Building...</>;
         case 'success': return <><CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />Build Succeeded</>;
         case 'error': return <><XCircle className="mr-2 h-4 w-4 text-red-500" />Build Failed</>;
-        default: return null;
+        default: return <>Idle</>;
     }
   };
 
+  const isLoading = isGenerating || (buildStatus !== 'idle' && buildStatus !== 'success' && buildStatus !== 'error');
+
   return (
-    <div className="flex min-h-screen w-full flex-col">
-      <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6">
+    <div className="flex h-screen w-full flex-col bg-slate-950 text-slate-50">
+      <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b border-slate-800 bg-slate-950 px-4 sm:px-6">
         <Button variant="outline" size="icon" className="h-8 w-8" asChild>
           <Link href="/">
             <ArrowLeft className="h-4 w-4" />
@@ -246,127 +257,139 @@ export default function BuildPage() {
           </Link>
         </Button>
         <h1 className="text-lg font-semibold">AI App Builder</h1>
+        <div className="ml-auto flex items-center gap-2">
+           <span className="text-sm text-muted-foreground">Status:</span>
+           <div className="flex items-center gap-2 text-sm">{renderBuildStatus()}</div>
+        </div>
       </header>
-      <main className="flex-1 p-4 md:p-8">
-        <div className="mx-auto max-w-4xl">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold tracking-tighter">Describe Your App</h2>
-            <p className="text-muted-foreground mt-2">
-              Tell our AI what your Flutter app should do. Or try one of our examples to get started.
-            </p>
-          </div>
-
-          <div className="mb-4">
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {examplePrompts.map((example) => (
-                <Button 
-                  key={example.title}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleExamplePromptClick(example.prompt)}
-                  className="bg-card/50"
-                >
-                  <Wand2 className="mr-2 h-4 w-4" />
-                  {example.title}
+      <ResizablePanelGroup direction="horizontal" className="flex-1">
+        <ResizablePanel defaultSize={25} minSize={20}>
+          <div className="flex h-full flex-col p-4 gap-4">
+            <h2 className="text-xl font-semibold">Describe Your App</h2>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="prompt"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>App Description</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="e.g., 'A simple todo list app...'"
+                          className="min-h-[120px] resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? (
+                    <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {loadingMessage}
+                    </>
+                    ) : (
+                    <>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Generate App
+                    </>
+                    )}
                 </Button>
-              ))}
+              </form>
+            </Form>
+            
+            <div className="space-y-2 mt-2">
+                <h3 className="text-sm font-semibold text-muted-foreground">Or try an example</h3>
+                <div className="flex flex-col items-start gap-2">
+                {examplePrompts.map((example) => (
+                    <Button 
+                    key={example.title}
+                    variant="link"
+                    size="sm"
+                    onClick={() => handleExamplePromptClick(example.prompt)}
+                    className="text-primary p-0 h-auto"
+                    >
+                    {example.title}
+                    </Button>
+                ))}
+                </div>
             </div>
-          </div>
-          
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="prompt"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Textarea
-                        placeholder="e.g., 'Build a simple todo list app with a button to add tasks and a list to display them.'"
-                        className="min-h-[120px] resize-none"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full" disabled={isLoading || (buildStatus !== 'idle' && buildStatus !== 'success' && buildStatus !== 'error')}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {loadingMessage}
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Generate App
-                  </>
-                )}
-              </Button>
-            </form>
-          </Form>
 
-          <div className="mt-8">
-            {isVaguePrompt && (
-              <Alert>
+             {isVaguePrompt && (
+              <Alert variant="destructive" className="mt-4">
                 <Bot className="h-4 w-4" />
                 <AlertTitle>AI Tip</AlertTitle>
                 <AlertDescription>
-                  Your request is a bit vague. Try adding more specific details about features or functionality for a better result.
+                  Your request is a bit vague. Try adding more specific details for a better result.
                 </AlertDescription>
               </Alert>
             )}
-            {(generatedCode || isLoading || buildStatus !== 'idle') && !isVaguePrompt && (
-              <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div>
-                    <h3 className="text-xl font-semibold mb-4">Source Code</h3>
-                    {isLoading && !generatedCode ? (
-                        <div className="space-y-4 mt-6">
-                            <CodeDisplay code={"Generating project files..."} />
-                        </div>
-                    ) : (
-                    <Tabs value={activeCodeTab} onValueChange={(value) => setActiveCodeTab(value as ActiveCodeTab)} className="w-full">
-                        <TabsList>
-                            <TabsTrigger value="main.dart"><FileCode className="mr-2 h-4 w-4"/>main.dart</TabsTrigger>
-                            <TabsTrigger value="pubspec.yaml"><FileCode className="mr-2 h-4 w-4"/>pubspec.yaml</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="main.dart">
-                            <CodeDisplay code={generatedCode?.mainDart ?? ""} />
-                        </TabsContent>
-                            <TabsContent value="pubspec.yaml">
-                            <CodeDisplay code={generatedCode?.pubspec ?? ""} />
-                        </TabsContent>
-                    </Tabs>
-                    )}
+
+            <div className="mt-auto border-t border-slate-800 pt-4">
+                <h3 className="text-lg font-semibold mb-2">Files</h3>
+                <div className="relative">
+                    <Input placeholder="Search Files" className="pl-8"/>
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 </div>
-                <div>
-                     <h3 className="text-xl font-semibold mb-4">Build & Preview</h3>
-                     <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActiveTab)} className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="logs">
-                                <Terminal className="mr-2 h-4 w-4" />
-                                Logs
-                            </TabsTrigger>
-                            <TabsTrigger value="preview" disabled={buildStatus !== 'success'}>
-                                <Play className="mr-2 h-4 w-4" />
-                                Preview
-                            </TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="logs">
-                            <div className="relative mt-2 w-full h-[480px] rounded-lg border bg-slate-900 text-slate-100 font-mono text-sm">
-                                <div className="absolute top-2 left-4 flex items-center gap-2">
-                                    {renderBuildStatus()}
-                                </div>
-                                <div ref={logContainerRef} className="p-4 pt-10 h-full overflow-y-auto">
-                                    {buildLogs.map((log, i) => (
-                                        <div key={i} className="whitespace-pre-wrap">{log}</div>
-                                    ))}
-                                </div>
+                <div className="mt-2 space-y-1">
+                    <div className="flex items-center gap-2 p-1 rounded-md">
+                        <Folder className="h-4 w-4"/>
+                        <span>project</span>
+                    </div>
+                     <div className="ml-4 flex items-center gap-2 p-1 rounded-md">
+                        <Folder className="h-4 w-4"/>
+                        <span>lib</span>
+                    </div>
+                     <button
+                        onClick={() => setActiveTab('main.dart')}
+                        disabled={!generatedCode}
+                        className="w-full text-left ml-8 flex items-center gap-2 p-1 rounded-md hover:bg-slate-800 disabled:opacity-50"
+                     >
+                        <FileIcon className="h-4 w-4"/>
+                        <span>main.dart</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('pubspec.yaml')}
+                        disabled={!generatedCode}
+                        className="w-full text-left ml-4 flex items-center gap-2 p-1 rounded-md hover:bg-slate-800 disabled:opacity-50"
+                     >
+                        <FileIcon className="h-4 w-4"/>
+                        <span>pubspec.yaml</span>
+                    </button>
+                </div>
+            </div>
+          </div>
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={75} minSize={30}>
+            <div className="h-full flex flex-col">
+                <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActiveTab)} className="w-full flex-1 flex flex-col">
+                    <TabsList className="m-2">
+                        <TabsTrigger value="main.dart" disabled={!generatedCode}><FileCode className="mr-2 h-4 w-4"/>main.dart</TabsTrigger>
+                        <TabsTrigger value="pubspec.yaml" disabled={!generatedCode}><FileCode className="mr-2 h-4 w-4"/>pubspec.yaml</TabsTrigger>
+                        <TabsTrigger value="logs"><Terminal className="mr-2 h-4 w-4" />Logs</TabsTrigger>
+                        <TabsTrigger value="preview" disabled={buildStatus !== 'success'}><Play className="mr-2 h-4 w-4" />Preview</TabsTrigger>
+                    </TabsList>
+                    
+                    <div className="flex-1 overflow-y-auto p-2">
+                        <TabsContent value="main.dart" className="m-0 h-full">
+                            <CodeDisplay code={generatedCode?.mainDart ?? "/*\n * Your generated main.dart code will appear here.\n * Describe your app on the left and click 'Generate App'.\n */"} />
+                        </TabsContent>
+                        <TabsContent value="pubspec.yaml" className="m-0 h-full">
+                            <CodeDisplay code={generatedCode?.pubspec ?? "# Your generated pubspec.yaml will appear here."} />
+                        </TabsContent>
+                        <TabsContent value="logs" className="m-0 h-full">
+                            <div ref={logContainerRef} className="w-full h-full rounded-lg bg-slate-900 text-slate-100 font-mono text-sm p-4 overflow-y-auto">
+                                {buildLogs.length > 0 ? buildLogs.map((log, i) => (
+                                    <div key={i} className="whitespace-pre-wrap">{log}</div>
+                                )) : <div className="text-muted-foreground">Build logs will appear here when you generate an app.</div>}
                             </div>
                         </TabsContent>
-                        <TabsContent value="preview">
-                            <div className="relative mx-auto mt-2 w-full h-[480px] rounded-lg border bg-card text-card-foreground shadow-sm flex items-center justify-center">
+                        <TabsContent value="preview" className="m-0 h-full">
+                            <div className="relative mx-auto w-full h-full rounded-lg border border-slate-800 bg-slate-900 text-card-foreground shadow-sm flex items-center justify-center">
                             {previewUrl ? (
                                 <iframe src={previewUrl} className="w-full h-full border-0" title="Flutter App Preview" />
                             ) : (
@@ -380,13 +403,11 @@ export default function BuildPage() {
                             )}
                             </div>
                         </TabsContent>
-                    </Tabs>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </main>
+                    </div>
+                </Tabs>
+            </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }
