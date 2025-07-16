@@ -26,9 +26,9 @@ import { CodeDisplay } from "@/components/code-display";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  ResizableHandle,
-  ResizablePanel,
   ResizablePanelGroup,
+  ResizablePanel,
+  PanelResizeHandle,
 } from "@/components/ui/resizable";
 
 const formSchema = z.object({
@@ -97,12 +97,15 @@ export default function BuildPage() {
       setBuildStatus('zipping');
       setBuildLogs(['Zipping project files...']);
       const zip = new JSZip();
-      zip.file("lib/main.dart", code.mainDart);
-      zip.file("pubspec.yaml", code.pubspec);
       
       const projectFolder = zip.folder("project");
-      projectFolder!.file("lib/main.dart", code.mainDart);
-      projectFolder!.file("pubspec.yaml", code.pubspec);
+      if (!projectFolder) {
+        setBuildStatus('error');
+        setBuildLogs(logs => [...logs, '---', `An error occurred: Failed to create zip folder.`]);
+        return;
+      }
+      projectFolder.file("lib/main.dart", code.mainDart);
+      projectFolder.file("pubspec.yaml", code.pubspec);
       
       try {
         const content = await zip.generateAsync({ type: "blob" });
@@ -363,7 +366,7 @@ export default function BuildPage() {
             </div>
           </div>
         </ResizablePanel>
-        <ResizableHandle withHandle />
+        <PanelResizeHandle withHandle />
         <ResizablePanel defaultSize={75} minSize={30}>
             <div className="h-full flex flex-col">
                 <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActiveTab)} className="w-full flex-1 flex flex-col">
